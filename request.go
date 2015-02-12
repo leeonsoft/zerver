@@ -16,7 +16,7 @@ type (
 		URL() *url.URL
 		Method() string
 		ContentType() string
-		ContentEncoding() string
+		AcceptEncodings() string
 		Header(name string) string
 		Cookie(name string) string
 		SecureCookie(name string) string
@@ -65,7 +65,6 @@ func newRequest(ctx *context, requ *http.Request) *request {
 
 // destroy destroy all reference that request keep
 func (req *request) destroy() {
-	req.context.destroy()
 	req.request = nil
 	req.params = nil
 	req.header = nil
@@ -87,8 +86,8 @@ func (req *request) Cookie(name string) string {
 // SecureCookie return secure cookie, currently it's just call Cookie without
 // 'Secure', if need this feture, just put an filter before handler
 // and override this method
-func (req *request) SecureCookie(name string) string {
-	return req.Cookie(name)
+func (req *request) SecureCookie(name string) (value string) {
+	return req.decodeSecureCookie(req.Cookie(name))
 }
 
 // RemoteAddr return remote address
@@ -111,8 +110,8 @@ func (req *request) ContentType() string {
 	return req.Header(HEADER_CONTENTTYPE)
 }
 
-func (req *request) ContentEncoding() string {
-	return req.Header(HEADER_CONTENTENCODING)
+func (req *request) AcceptEncodings() string {
+	return req.Header(HEADER_ACCEPTENCODING)
 }
 
 // URL return request url

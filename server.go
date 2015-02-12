@@ -11,12 +11,6 @@ import (
 	. "github.com/cosiner/golib/errors"
 )
 
-// serverStart do only once
-var (
-	serverStart = new(sync.Once)
-	serverInit  = new(sync.Once)
-)
-
 //==============================================================================
 //                           Server Init
 //==============================================================================
@@ -32,7 +26,10 @@ type (
 		SessionLifetime    int64              // session lifetime
 		TemplateEngine     TemplateEngine     // template engine
 		FilterForward      bool               // fliter forward request
-		XsrfEnable         bool               // Enable xsrf cookie
+		SecureCookieEnable bool               // enable secure cookie
+		SecretKey          []byte             // secret key
+		GzipResponse       bool               // compress response use gzip
+		XsrfEnable         bool               // enable xsrf cookie
 		XsrfFlushInterval  int                // xsrf cookie value flush interval
 		XsrfLifetime       int                // xsrf cookie expire
 		XsrfTokenGenerator XsrfTokenGenerator // xsrf token generator
@@ -45,24 +42,27 @@ type (
 		SessionManager
 		ErrorHandlers
 		TemplateEngine
-		xsrf          Xsrf
-		filterForward bool
+		xsrfProcessor         Xsrf
+		responseCompressor    ResponseCompressor
+		secureCookieProcessor SecureCookie
+		filterForward         bool
+		initOnce              *sync.Once
 	}
 )
 
 // NewServer create a new server
 func NewServer() *Server {
 	return &Server{
-		AttrContainer: NewLockedAttrContainer(),
-		Router:        NewRouter(),
+		AttrContainer:  NewLockedAttrContainer(),
+		Router:         NewRouter(),
+		ErrorHandlers:  NewErrorHandlers(),
+		TemplateEngine: NewTemplateEngine(),
+		initOnce:       new(sync.Once),
 	}
 }
 
-// init
+// init init server config
 func (sc *ServerConfig) init() {
-	if sc.ErrorHandlers == nil {
-		sc.ErrorHandlers = NewErrorHandlers()
-	}
 	if !sc.SessionDisable {
 		if sc.SessionStore == nil {
 			sc.StoreConfig = DEF_SESSION_MEMSTORE_CONF
@@ -78,9 +78,6 @@ func (sc *ServerConfig) init() {
 	} else {
 		sc.SessionManager = newPanicSessionManager()
 	}
-	if sc.TemplateEngine == nil {
-		sc.TemplateEngine = NewTemplateEngine()
-	}
 }
 
 // Init init server with given config, it do only once, if the config contains
@@ -89,9 +86,15 @@ func (sc *ServerConfig) init() {
 // templates and locales are inited last, so Handler/Filter/WebSockethandler's Init
 // can use server to add templates and other resources
 func (s *Server) Init(conf *ServerConfig) {
-	serverInit.Do(func() {
+	s.initOnce.Do(func() {
 		if conf.Router != nil {
 			s.Router = conf.Router
+		}
+		if conf.ErrorHandlers != nil {
+			s.ErrorHandlers = conf.ErrorHandlers
+		}
+		if conf.TemplateEngine != nil {
+			s.TemplateEngine = conf.TemplateEngine
 		}
 		strach.setServerConfig(conf)
 	})
@@ -105,7 +108,6 @@ func (s *Server) start() {
 	}
 	srvConf.init()
 	if srvConf.XsrfEnable {
-		log.Println("Init xsrf")
 		xsrfFlush := srvConf.XsrfFlushInterval
 		if xsrfFlush <= 0 {
 			xsrfFlush = XSRF_DEFFLUSH
@@ -114,13 +116,19 @@ func (s *Server) start() {
 		if xsrfLifetime <= 0 {
 			xsrfLifetime = XSRF_DEFLIFETIME
 		}
+		log.Println("XsrfConfig: FlushInterval:", xsrfFlush, " CookieLifetime:", xsrfLifetime)
 		xsrfGen := srvConf.XsrfTokenGenerator
-		s.xsrf = NewXsrf(xsrfGen, xsrfLifetime)
+		s.xsrfProcessor = NewXsrf(xsrfGen, xsrfLifetime)
 	} else {
-		s.xsrf = emptyXsrf{}
+		s.xsrfProcessor = emptyXsrf{}
 	}
-
+	log.Println("Enable Response Compress:", srvConf.GzipResponse)
+	s.responseCompressor = NewResponseCompressor(srvConf.GzipResponse)
+	log.Println("Enable Secure Cookie:", srvConf.SecureCookieEnable)
+	s.secureCookieProcessor = NewSecureCookieProcessor(srvConf.SecureCookieEnable, srvConf.SecretKey)
+	log.Println("Enable Filters for Forward Request:", srvConf.FilterForward)
 	s.filterForward = srvConf.FilterForward
+
 	manager := srvConf.SessionManager
 	if !srvConf.SessionDisable {
 		log.Println("Init Session Store and Manager")
@@ -143,11 +151,11 @@ func (s *Server) start() {
 	})
 
 	log.Println("Init Error Handlers")
-	s.ErrorHandlers = srvConf.ErrorHandlers
 	s.ErrorHandlers.Init(s)
 
 	log.Println("Compile Templates")
-	s.TemplateEngine = srvConf.TemplateEngine
+	log.Println("	templates:", strach.tmpls())
+	log.Println("	delimeters:", strach.tmplDelimsSlice())
 	OnErrPanic(s.CompileTemplates())
 
 	log.Println("Initial I18N Locales")
@@ -169,13 +177,13 @@ func (s *Server) start() {
 
 // Start start server as http server
 func (s *Server) Start(listenAddr string) error {
-	serverStart.Do(s.start)
+	s.start()
 	return http.ListenAndServe(listenAddr, s)
 }
 
 // StartTLS start server as https server
 func (s *Server) StartTLS(listenAddr, certFile, keyFile string) error {
-	serverStart.Do(s.start)
+	s.start()
 	return http.ListenAndServeTLS(listenAddr, certFile, keyFile, s)
 }
 
@@ -204,23 +212,11 @@ func (s *Server) serveWebSocket(w http.ResponseWriter, request *http.Request) {
 
 // serveHttp serve for http protocal
 func (s *Server) serveHttp(w http.ResponseWriter, request *http.Request) {
-	req, resp := s.setupContext(w, request)
-	s.processHttpRequest(request.URL, req, resp, false) // process
-	if req.hasSession() {                               // store session
-		s.StoreSession(req.Session())
-	}
-	resp.destroy() // destroy request, response
-	req.destroy()
-}
-
-// setupContext set up context for request and response
-func (s *Server) setupContext(w http.ResponseWriter, request *http.Request) (
-	*request, *response) {
 	ctx := newContext(s, w, request)
-	resp := newResponse(ctx, w)
-	req := newRequest(ctx, request)
+	req, resp := newRequest(ctx, request), newResponse(ctx, w)
 	ctx.init(req, resp)
-	return req, resp
+	s.processHttpRequest(request.URL, req, resp, false) // process
+	ctx.destroy()
 }
 
 // processHttpRequest do process http request
@@ -233,20 +229,22 @@ func (s *Server) processHttpRequest(url *url.URL, req *request, resp *response, 
 	)
 	if !forward { // check xsrf error
 		if method == GET {
-			resp.setXsrfToken(s.xsrf.Set(req, resp))
+			resp.setXsrfToken(s.xsrfProcessor.Set(req, resp))
 		} else {
-			xsrfError = !s.xsrf.IsValid(req)
+			xsrfError = !s.xsrfProcessor.IsValid(req)
 		}
 	} else if !s.filterForward {
 		matchFunc = s.MatchHandler
 	}
 	handler, indexer, filters := matchFunc(url)
 	handlerFunc = s.indicateHandlerFunc(method, xsrfError, handler)
-	if filters == nil {
+	wc := s.responseCompressor.EnableCompress(req, resp)
+	if len(filters) == 0 {
 		handlerFunc(req.setVarIndexer(indexer), resp)
 	} else {
 		NewFilterChain(filters, handlerFunc).Filter(req.setVarIndexer(indexer), resp)
 	}
+	s.responseCompressor.CloseResponseCompress(resp, wc)
 }
 
 // indicateHandlerFunc indicate handler function from method, has xsrf error and handler

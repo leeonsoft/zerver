@@ -108,7 +108,7 @@ const (
 // pathSections divide path by '/', trim end '/'and the first '/'
 func pathSections(path string) []string {
 	if l := len(path); l > 0 {
-		if path[l-1] == '/' {
+		if l != 1 && path[l-1] == '/' {
 			l = l - 1
 		}
 		path = path[1:l] // trim first and last '/'
@@ -136,7 +136,6 @@ func isInvalidSection(s string) bool {
 func compile(path string) (newPath string, names map[string]int, err error) {
 	new := make([]byte, 0, len(newPath))
 	sections := pathSections(path)
-	fmt.Println(sections)
 	nameIndex := 0
 	for _, s := range sections {
 		new = append(new, '/')
@@ -405,14 +404,19 @@ func (rt *router) MatchHandlerFilters(url *url.URL) (handler Handler,
 		values    []string
 		continu   = true
 		path      = url.Path
+		processor *routeProcessor
 	)
+	if processor = rt.processor; processor != nil {
+		filters = append(rt.processor.filters)
+	}
 	for continu {
 		pathIndex, values, rt, continu = rt.matchMulti(path, pathIndex, values)
 		if rt != nil {
-			if rp := rt.processor; rp != nil {
-				filters = append(filters, rp.filters...)
-				if !continu {
-					if hp := rp.handlerProcessor; hp != nil {
+			if processor = rt.processor; processor != nil {
+				if continu {
+					filters = append(filters, processor.filters...)
+				} else {
+					if hp := processor.handlerProcessor; hp != nil {
 						handler, indexer = hp.handler, newVarIndexer(hp.vars, values)
 					}
 				}

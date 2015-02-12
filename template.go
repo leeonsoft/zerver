@@ -89,7 +89,7 @@ func (t *template) AddTemplates(names ...string) (err error) {
 func (t *template) CompileTemplates() (err error) {
 	var tmpl *htmpl.Template
 	if tmpls := strach.tmpls(); len(tmpls) != 0 {
-		tmpl, err = tmpl.New("tmpl").
+		tmpl, err = htmpl.New("tmpl").
 			Delims(strach.tmplDelims()).
 			Funcs(GlobalTmplFuncs).
 			ParseFiles(strach.tmpls()...)

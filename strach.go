@@ -41,6 +41,10 @@ func (s *_strach) tmplDelims() (string, string) {
 	return s._tmplDelims[0], s._tmplDelims[1]
 }
 
+func (s *_strach) tmplDelimsSlice() []string {
+	return []string{s._tmplDelims[0], s._tmplDelims[1]}
+}
+
 func (s *_strach) funcHandler(pattern string) *funcHandler {
 	return s._funcHandlers[pattern]
 }

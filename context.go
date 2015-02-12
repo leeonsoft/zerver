@@ -47,6 +47,11 @@ func (ctx *context) SetAttrs(attrs Values) {
 
 // destroy destroy all reference the context keep
 func (ctx *context) destroy() {
+	ctx.req.destroy()
+	ctx.resp.destroy()
+	if ctx.sess != nil {
+		ctx.srv.StoreSession(ctx.sess)
+	}
 	ctx.srv = nil
 	ctx.sess = nil
 	ctx.request = nil
@@ -79,7 +84,12 @@ func (ctx *context) Session() (sess *Session) {
 	return sess
 }
 
-// Attrs return all attrubites exist in request context
-func (ctx *context) Attrs() Values {
-	return ctx.Values
+// encodeSecureCookie create secure cookie from a normal cookie
+func (ctx *context) encodeSecureCookie(val string) string {
+	return ctx.srv.secureCookieProcessor.EncodeSecureCookie(val)
+}
+
+// decodeSecureCookie decode normal cookie from secure cookie
+func (ctx *context) decodeSecureCookie(val string) string {
+	return ctx.srv.secureCookieProcessor.DecodeSecureCookie(val)
 }

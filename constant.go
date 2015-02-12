@@ -14,6 +14,7 @@ const (
 	HEADER_REFER           = "Referer"
 	HEADER_CONTENTENCODING = "Content-Encoding"
 	HEADER_USERAGENT       = "User-Agent"
+	HEADER_ACCEPTENCODING  = "Accept-Encoding"
 
 	// Xsrf
 	HEADER_XSRFTOKEN  = "X-XSRFToken"

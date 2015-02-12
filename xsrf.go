@@ -98,7 +98,7 @@ func (x *xsrf) Set(_ Request, resp Response) (value string) {
 		x.RLock()
 		value = x.value
 		x.RUnlock()
-		resp.SetCookieWithExpire(XSRF_NAME, value, x.valueLifetime)
+		resp.SetCookie(XSRF_NAME, value, x.valueLifetime)
 	}
 	return
 }
