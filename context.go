@@ -11,16 +11,18 @@ type context struct {
 	req       *request
 	resp      *response
 	xsrfToken string
+	SecureCookie
 	Values
 }
 
 // newContext create a new context
 func newContext(s *Server, w http.ResponseWriter, request *http.Request) *context {
 	return &context{
-		srv:     s,
-		w:       w,
-		request: request,
-		Values:  NewValues(),
+		srv:          s,
+		w:            w,
+		request:      request,
+		SecureCookie: s.secureCookieProcessor,
+		Values:       NewValues(),
 	}
 }
 
@@ -82,14 +84,4 @@ func (ctx *context) Session() (sess *Session) {
 		ctx.sess = sess
 	}
 	return sess
-}
-
-// encodeSecureCookie create secure cookie from a normal cookie
-func (ctx *context) encodeSecureCookie(val string) string {
-	return ctx.srv.secureCookieProcessor.EncodeSecureCookie(val)
-}
-
-// decodeSecureCookie decode normal cookie from secure cookie
-func (ctx *context) decodeSecureCookie(val string) string {
-	return ctx.srv.secureCookieProcessor.DecodeSecureCookie(val)
 }

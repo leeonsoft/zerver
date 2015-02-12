@@ -145,7 +145,7 @@ func (resp *response) SetCookie(name, value string, lifetime int) {
 
 // SetSecureCookie setup response cookie with secureity
 func (resp *response) SetSecureCookie(name, value string, lifetime int) {
-	resp.SetCookie(name, resp.encodeSecureCookie(value), lifetime)
+	resp.SetCookie(name, resp.EncodeSecureCookie(value), lifetime)
 }
 
 // DeleteClientCookie delete user briwser's cookie by name

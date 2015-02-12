@@ -1,7 +1,6 @@
 package zerver
 
 import (
-	"fmt"
 	"net/url"
 	"strings"
 
@@ -640,7 +639,6 @@ func printRouteTree(root *router, parentPath string) {
 		parentPath = parentPath + _PRINT_SEP
 	}
 	cur := parentPath + root.str
-	fmt.Println(cur)
 	root.accessAllChilds(func(n *router) bool {
 		printRouteTree(n, cur)
 		return true

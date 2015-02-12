@@ -87,7 +87,7 @@ func (req *request) Cookie(name string) string {
 // 'Secure', if need this feture, just put an filter before handler
 // and override this method
 func (req *request) SecureCookie(name string) (value string) {
-	return req.decodeSecureCookie(req.Cookie(name))
+	return req.DecodeSecureCookie(req.Cookie(name))
 }
 
 // RemoteAddr return remote address

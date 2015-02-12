@@ -3,7 +3,6 @@ package zerver
 import (
 	"github.com/cosiner/golib/crypto"
 	. "github.com/cosiner/golib/errors"
-	"github.com/cosiner/golib/types"
 )
 
 type (
@@ -38,9 +37,9 @@ func (esc emptyCompressor) EncodeSecureCookie(value string) string { return valu
 func (esc emptyCompressor) DecodeSecureCookie(value string) string { return value }
 
 func (hsc *hmacSecureCookie) EncodeSecureCookie(value string) string {
-	return types.UnsafeString(crypto.SignSecret(hsc.secret, types.UnsafeBytes(value)))
+	return crypto.SignSecret(hsc.secret, value)
 }
 
 func (hsc *hmacSecureCookie) DecodeSecureCookie(value string) string {
-	return types.UnsafeString(crypto.VerifySecret(hsc.secret, types.UnsafeBytes(value)))
+	return crypto.VerifySecret(hsc.secret, value)
 }
