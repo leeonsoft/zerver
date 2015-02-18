@@ -1,12 +1,10 @@
-package zerver
+package zerver_rest
 
 import (
 	"net"
 	"net/url"
 
-	"github.com/cosiner/golib/encoding"
-
-	"github.com/cosiner/zerver/websocket"
+	websocket "github.com/cosiner/zerver_websocket"
 )
 
 type (
@@ -14,17 +12,15 @@ type (
 	// WebSocket connection is not be managed in server,
 	// it's handler's responsibility to close connection
 	WebSocketConn interface {
-		UrlVarIndexer
+		URLVarIndexer
 		net.Conn
-		encoding.CleanPowerWriter
 		URL() *url.URL
 	}
 
 	// webSocketConn is the actual websocket connection
 	webSocketConn struct {
 		*websocket.Conn
-		encoding.CleanPowerWriter
-		UrlVarIndexer
+		URLVarIndexer
 	}
 
 	// WebSocketHandlerFunc is the websocket connection handler
@@ -45,17 +41,11 @@ func (WebSocketHandlerFunc) Destroy()                     {}
 
 // newWebSocketConn wrap a exist websocket connection and url variables to a
 // new webSocketConn
-func newWebSocketConn(conn *websocket.Conn) *webSocketConn {
+func newWebSocketConn(conn *websocket.Conn, varIndexer URLVarIndexer) *webSocketConn {
 	return &webSocketConn{
-		Conn:             conn,
-		CleanPowerWriter: encoding.NewPowerReadWriterInOne(conn),
+		Conn:          conn,
+		URLVarIndexer: varIndexer,
 	}
-}
-
-// setUrlVarIndexer set up url variable vlaues
-func (wsc *webSocketConn) setUrlVarIndexer(indexer UrlVarIndexer) *webSocketConn {
-	wsc.UrlVarIndexer = indexer
-	return wsc
 }
 
 // URL return client side url

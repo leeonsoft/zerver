@@ -1,4 +1,4 @@
-package zerver
+package zerver_rest
 
 import (
 	"net/url"
@@ -30,22 +30,22 @@ type (
 
 		// MatchHandler match given url to find  final handler, filters must be nil
 		// it's just for signature compatible with MatchHandlerFilters
-		MatchHandler(url *url.URL) (Handler, UrlVarIndexer, []Filter)
+		MatchHandler(url *url.URL) (Handler, URLVarIndexer, []Filter)
 		// MatchHandlerFilters match given url to find all matched filters and final handler
-		MatchHandlerFilters(url *url.URL) (Handler, UrlVarIndexer, []Filter)
+		MatchHandlerFilters(url *url.URL) (Handler, URLVarIndexer, []Filter)
 		// MatchWebSocketHandler match given url to find a matched websocket handler
-		MatchWebSocketHandler(url *url.URL) (WebSocketHandler, UrlVarIndexer)
+		MatchWebSocketHandler(url *url.URL) (WebSocketHandler, URLVarIndexer)
 	}
 
-	// UrlVarIndexer is a indexer for name to value
-	UrlVarIndexer interface {
-		// ValuesOf return values of variable in given values
-		UrlVar(name string) string
-		// ScanUrlVars scan given values into variable addresses
+	// URLVarIndexer is a indexer for name to value
+	URLVarIndexer interface {
+		// URLVar return value of variable
+		URLVar(name string) string
+		// ScanURLVars scan given values into variable addresses
 		// if address is nil, skip it
-		ScanUrlVars(vars ...*string)
-		// UrlVars return all values of variable
-		UrlVars() []string
+		ScanURLVars(vars ...*string)
+		// URLVars return all values of variable
+		URLVars() []string
 	}
 
 	// handlerProcessor keep handler and url variables of this route
@@ -74,7 +74,7 @@ type (
 		processor *routeProcessor // processor for current route node
 	}
 
-	// pathVars is an implementation of UrlVarIndexer
+	// pathVars is an implementation of URLVarIndexer
 	pathVars struct {
 		vars   map[string]int // url variables and indexs of sections splited by '/'
 		values []string       // all url variable values
@@ -84,7 +84,7 @@ type (
 var (
 	// nilVars is empty variable map
 	nilVars = make(map[string]int)
-	// nilVarIndexer is a empty UrlVarIndexer
+	// nilVarIndexer is a empty URLVarIndexer
 	nilVarIndexer = &pathVars{vars: nilVars, values: nil}
 	// reserveChildsCount is route childs slice increment and init size for addPath
 	reserveChildsCount = 1
@@ -183,7 +183,7 @@ ERROR:
 
 // newVarIndexer create a new VarIndexer with variable map and values
 // if variables is empty then use default empty var indexer
-func newVarIndexer(vars map[string]int, values []string) UrlVarIndexer {
+func newVarIndexer(vars map[string]int, values []string) URLVarIndexer {
 	if len(vars) == 0 {
 		return nilVarIndexer
 	}
@@ -193,22 +193,22 @@ func newVarIndexer(vars map[string]int, values []string) UrlVarIndexer {
 	return v
 }
 
-// UrlVar return values of variable
-func (v *pathVars) UrlVar(name string) string {
+// URLVar return values of variable
+func (v *pathVars) URLVar(name string) string {
 	if index, has := v.vars[name]; has {
 		return v.values[index]
 	}
 	return ""
 }
 
-// UrlVars return all values of variable
-func (v *pathVars) UrlVars() []string {
+// URLVars return all values of variable
+func (v *pathVars) URLVars() []string {
 	return v.values
 }
 
-// ScanUrlVars scan values into variable addresses
+// ScanURLVars scan values into variable addresses
 // if address is nil, skip it
-func (v *pathVars) ScanUrlVars(vars ...*string) {
+func (v *pathVars) ScanURLVars(vars ...*string) {
 	values := v.values
 	l1, l2 := len(values), len(vars)
 	for i := 0; i < l1 && i < l2; i++ {
@@ -367,7 +367,7 @@ func (rt *router) addPattern(pattern string, fn func(*routeProcessor, map[string
 }
 
 // MatchWebSockethandler match url to find final websocket handler
-func (rt *router) MatchWebSocketHandler(url *url.URL) (WebSocketHandler, UrlVarIndexer) {
+func (rt *router) MatchWebSocketHandler(url *url.URL) (WebSocketHandler, URLVarIndexer) {
 	path := url.Path
 	rt, values := rt.matchOne(path)
 	if rt != nil {
@@ -382,7 +382,7 @@ func (rt *router) MatchWebSocketHandler(url *url.URL) (WebSocketHandler, UrlVarI
 
 // MatchHandler match url to find final handler, last returned value will only
 // be nil, it appeared only for compate with MatchHandlerFilters
-func (rt *router) MatchHandler(url *url.URL) (Handler, UrlVarIndexer, []Filter) {
+func (rt *router) MatchHandler(url *url.URL) (Handler, URLVarIndexer, []Filter) {
 	path := url.Path
 	rt, values := rt.matchOne(path)
 	if rt != nil {
@@ -397,7 +397,7 @@ func (rt *router) MatchHandler(url *url.URL) (Handler, UrlVarIndexer, []Filter) 
 
 // MatchHandlerFilters match url to fin final handler and each filters
 func (rt *router) MatchHandlerFilters(url *url.URL) (handler Handler,
-	indexer UrlVarIndexer, filters []Filter) {
+	indexer URLVarIndexer, filters []Filter) {
 	var (
 		pathIndex int
 		values    []string

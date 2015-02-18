@@ -1,4 +1,4 @@
-package zerver
+package zerver_rest
 
 type (
 	// FilterFunc represent common filter function type,

@@ -1,21 +1,16 @@
-package zerver
+package zerver_rest
 
 import (
 	"bufio"
+	"io"
 	"net"
 	"net/http"
 
-	"github.com/cosiner/golib/types"
-
 	. "github.com/cosiner/golib/errors"
-
-	"github.com/cosiner/golib/encoding"
 )
 
 type (
 	Response interface {
-		Render(tmpl string) error
-		RenderWith(tmpl string, value interface{}) error
 		SetHeader(name, value string)
 		AddHeader(name, value string)
 		RemoveHeader(name string)
@@ -24,21 +19,15 @@ type (
 		SetCookie(name, value string, lifetime int)
 		SetSecureCookie(name, value string, lifetime int)
 		DeleteClientCookie(name string)
-		Redirect(url string)
-		PermanentRedirect(url string)
 		ReportStatus(statusCode int)
 		Hijack() (net.Conn, *bufio.ReadWriter, error)
 		Flush()
-		AttrContainer
-		types.WriterChain
-		encoding.CleanPowerWriter
+		io.Writer
 	}
 
 	// response represent a response of request to user
 	response struct {
-		*context
-		types.WriterChain
-		encoding.CleanPowerWriter
+		http.ResponseWriter
 		header http.Header
 	}
 
@@ -47,25 +36,12 @@ type (
 )
 
 // newResponse create a new response, and set default content type to HTML
-func newResponse(ctx *context, w http.ResponseWriter) *response {
-	chain := types.NewWriterChain(w)
-	pw := encoding.NewPowerWriter(chain)
+func newResponse(w http.ResponseWriter) Response {
 	resp := &response{
-		context:          ctx,
-		WriterChain:      chain,
-		CleanPowerWriter: pw,
-		header:           w.Header(),
+		ResponseWriter: w,
+		header:         w.Header(),
 	}
-	resp.SetContentType(CONTENTTYPE_HTML)
 	return resp
-}
-
-// destroy destroy all reference that response keep
-func (resp *response) destroy() {
-	resp.context = nil
-	resp.CleanPowerWriter = nil
-	resp.WriterChain = nil
-	resp.header = nil
 }
 
 // SetHeader setup response header
@@ -98,24 +74,14 @@ func (*response) newCookie(name, value string, lifetime int) string {
 	}).String()
 }
 
-// Redirect redirect to new url
-func (resp *response) Redirect(url string) {
-	http.Redirect(resp.httpWriter(), resp.request, url, http.StatusTemporaryRedirect)
-}
-
-// PermanentRedirect permanently redirect current request url to new url
-func (resp *response) PermanentRedirect(url string) {
-	http.Redirect(resp.httpWriter(), resp.request, url, http.StatusMovedPermanently)
-}
-
 // ReportStatus report an http status with given status code
 func (resp *response) ReportStatus(statusCode int) {
-	resp.BaseWriter().(http.ResponseWriter).WriteHeader(statusCode)
+	resp.WriteHeader(statusCode)
 }
 
 // Hijack hijack response connection
 func (resp *response) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	if hijacker, is := resp.w.(http.Hijacker); is {
+	if hijacker, is := resp.ResponseWriter.(http.Hijacker); is {
 		return hijacker.Hijack()
 	}
 	return nil, nil, Err("Connection not support hijack")
@@ -123,7 +89,7 @@ func (resp *response) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 
 // Flush flush response's output
 func (resp *response) Flush() {
-	if flusher, is := resp.w.(http.Flusher); is {
+	if flusher, is := resp.ResponseWriter.(http.Flusher); is {
 		flusher.Flush()
 	}
 }
@@ -145,29 +111,10 @@ func (resp *response) SetCookie(name, value string, lifetime int) {
 
 // SetSecureCookie setup response cookie with secureity
 func (resp *response) SetSecureCookie(name, value string, lifetime int) {
-	resp.SetCookie(name, resp.EncodeSecureCookie(value), lifetime)
+	resp.SetCookie(name, value, lifetime)
 }
 
 // DeleteClientCookie delete user briwser's cookie by name
 func (resp *response) DeleteClientCookie(name string) {
 	resp.SetCookie(name, "", -1)
-}
-
-// setSessionCookie setup session cookie, if enabled secure cookie, it will use it
-func (resp *response) setSessionCookie(id string) {
-	resp.SetSecureCookie(_COOKIE_SESSION, id, 0)
-}
-
-// Render render template with context
-func (resp *response) Render(tmpl string) error {
-	return resp.Server().RenderTemplate(resp, tmpl, resp.context)
-}
-
-// RenderWith render template with given value
-func (resp *response) RenderWith(tmpl string, value interface{}) error {
-	return resp.Server().RenderTemplate(resp, tmpl, value)
-}
-
-func (resp *response) httpWriter() http.ResponseWriter {
-	return resp.BaseWriter().(http.ResponseWriter)
 }

@@ -1,10 +1,6 @@
-package zerver
+package zerver_rest
 
-import (
-	"net/http"
-
-	. "github.com/cosiner/golib/errors"
-)
+import . "github.com/cosiner/golib/errors"
 
 type (
 	// HandlerFunc is the common request handler function type
@@ -33,19 +29,6 @@ type (
 		Handler(method string) HandlerFunc
 	}
 
-	// ErrorHandlers is a collection of http error status handler
-	ErrorHandlers interface {
-		Init(s *Server)
-		ForbiddenHandler() HandlerFunc
-		SetForbiddenHandler(HandlerFunc)
-		NotFoundHandler() HandlerFunc
-		SetNotFoundHandler(HandlerFunc)
-		MethodNotAllowedHandler() HandlerFunc
-		SetMethodNotAllowedHandler(HandlerFunc)
-		XsrfErrorHandler() HandlerFunc
-		SetXsrfErrorHandler(HandlerFunc)
-	}
-
 	// EmptyHandler is an empty handler for user to embed
 	EmptyHandler struct{}
 
@@ -63,9 +46,6 @@ type (
 		put    HandlerFunc
 		patch  HandlerFunc
 	}
-
-	// errorHandlers is a collection of http error handler
-	errorHandlers map[int]HandlerFunc
 )
 
 // IndicateHandler indicate handler function from a handler and method
@@ -140,61 +120,3 @@ func (EmptyHandler) Post(Request, Response)   {}
 func (EmptyHandler) Delete(Request, Response) {}
 func (EmptyHandler) Put(Request, Response)    {}
 func (EmptyHandler) Patch(Request, Response)  {}
-
-// ErrorHandlerBuilder build an error handler with given status code
-func ErrorHandlerBuilder(statusCode int) HandlerFunc {
-	return func(req Request, resp Response) {
-		resp.ReportStatus(statusCode)
-	}
-}
-
-// NewErrorHandlers create new errorHandlers
-func NewErrorHandlers() ErrorHandlers {
-	forbidden := ErrorHandlerBuilder(http.StatusForbidden)
-	return errorHandlers{
-		http.StatusForbidden:        forbidden,
-		http.StatusNotFound:         ErrorHandlerBuilder(http.StatusNotFound),
-		http.StatusMethodNotAllowed: ErrorHandlerBuilder(http.StatusMethodNotAllowed),
-		XSRF_ERRORCODE:              forbidden,
-	}
-}
-
-func (eh errorHandlers) Init(*Server) {}
-
-// ForbiddenHandler return forbidden error handler
-func (eh errorHandlers) ForbiddenHandler() HandlerFunc {
-	return eh[http.StatusForbidden]
-}
-
-// SetForbiddenHandler set forbidden error handler
-func (eh errorHandlers) SetForbiddenHandler(handlerFunc HandlerFunc) {
-	eh[http.StatusForbidden] = handlerFunc
-}
-
-// NotFoundHandler return notfound error handler
-func (eh errorHandlers) NotFoundHandler() HandlerFunc {
-	return eh[http.StatusNotFound]
-}
-
-// SetNotFoundHandler set notfound error handler
-func (eh errorHandlers) SetNotFoundHandler(handlerFunc HandlerFunc) {
-	eh[http.StatusNotFound] = handlerFunc
-}
-
-// MethodNotAllowedHandler return methodnotallowed error handler
-func (eh errorHandlers) MethodNotAllowedHandler() HandlerFunc {
-	return eh[http.StatusMethodNotAllowed]
-}
-
-// SetMethodNotAllowedHandler set methodnotallowed error handler
-func (eh errorHandlers) SetMethodNotAllowedHandler(handlerFunc HandlerFunc) {
-	eh[http.StatusMethodNotAllowed] = handlerFunc
-}
-
-func (eh errorHandlers) XsrfErrorHandler() HandlerFunc {
-	return eh[XSRF_ERRORCODE]
-}
-
-func (eh errorHandlers) SetXsrfErrorHandler(handlerFunc HandlerFunc) {
-	eh[XSRF_ERRORCODE] = handlerFunc
-}

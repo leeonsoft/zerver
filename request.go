@@ -1,6 +1,7 @@
-package zerver
+package zerver_rest
 
 import (
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -11,7 +12,7 @@ import (
 type (
 	Request interface {
 		RemoteAddr() string
-		Refer() string
+		RemoteIP() string
 		UserAgent() string
 		URL() *url.URL
 		Method() string
@@ -20,40 +21,28 @@ type (
 		Header(name string) string
 		Cookie(name string) string
 		SecureCookie(name string) string
-		Session() *Session
 		Server() *Server
-		Param(name string) (value string)
-		Params(name string) []string
-		Forward(addr string) error
-		encoding.PowerReader
-		UrlVarIndexer
-		AttrContainer
+		io.Reader
+		URLVarIndexer
 	}
 
 	// request represent an income request
 	request struct {
-		*context
-		UrlVarIndexer
+		URLVarIndexer
 		encoding.PowerReader
+		server  *Server
 		request *http.Request
 		method  string
-		// params represent user request's parameters,
-		// for GET it's exist in url, for other method, parse from form
-		params url.Values
-		header http.Header
+		header  http.Header
 	}
-
-	// unmarshalFunc is the type of unmarshal function
-	unmarshalFunc func([]byte, interface{}) error
 )
 
 // newRequest create a new request
-func newRequest(ctx *context, requ *http.Request) *request {
+func newRequest(requ *http.Request, varIndexer URLVarIndexer) Request {
 	req := &request{
-		context:     ctx,
-		PowerReader: encoding.NewPowerReader(requ.Body),
-		request:     requ,
-		header:      requ.Header,
+		request:       requ,
+		header:        requ.Header,
+		URLVarIndexer: varIndexer,
 	}
 	method := requ.Method
 	if m := requ.Header.Get("X-HTTP-Method-Override"); method == POST && m != "" {
@@ -63,11 +52,12 @@ func newRequest(ctx *context, requ *http.Request) *request {
 	return req
 }
 
-// destroy destroy all reference that request keep
-func (req *request) destroy() {
-	req.request = nil
-	req.params = nil
-	req.header = nil
+func (req *request) Read(data []byte) (int, error) {
+	return req.request.Body.Read(data)
+}
+
+func (req *request) Server() *Server {
+	return req.server
 }
 
 // Method return method of request
@@ -87,7 +77,7 @@ func (req *request) Cookie(name string) string {
 // 'Secure', if need this feture, just put an filter before handler
 // and override this method
 func (req *request) SecureCookie(name string) (value string) {
-	return req.DecodeSecureCookie(req.Cookie(name))
+	return req.Cookie(name)
 }
 
 // RemoteAddr return remote address
@@ -95,9 +85,8 @@ func (req *request) RemoteAddr() string {
 	return req.request.RemoteAddr
 }
 
-// Refer return where user from
-func (req *request) Refer() string {
-	return req.Header(HEADER_REFER)
+func (req *request) RemoteIP() string {
+	return strings.Split(req.RemoteAddr(), ":")[1]
 }
 
 // UserAgent return user's agent identify
@@ -119,58 +108,7 @@ func (req *request) URL() *url.URL {
 	return req.request.URL
 }
 
-// cookieSessionId extract session id from cookie, if enable secure cookie, it will
-// use it
-func (req *request) cookieSessionId() string {
-	return req.SecureCookie(_COOKIE_SESSION)
-}
-
 // Header return header value with name
 func (req *request) Header(name string) string {
 	return req.header.Get(name)
-}
-
-// Param return request parameter with name
-func (req *request) Param(name string) (value string) {
-	params := req.Params(name)
-	if len(params) > 0 {
-		value = params[0]
-	}
-	return
-}
-
-// Params return request parameters with name
-func (req *request) Params(name string) []string {
-	params, request := req.params, req.request
-	if params == nil {
-		switch req.method {
-		case GET:
-			params = request.URL.Query()
-		default:
-			request.ParseForm()
-			params = request.PostForm
-		}
-		req.params = params
-	}
-	return params[name]
-}
-
-// setVarIndexer setup request url variables
-func (req *request) setVarIndexer(indexer UrlVarIndexer) *request {
-	req.UrlVarIndexer = indexer
-	return req
-}
-
-// Forward forward to given address use exist request and response
-func (req *request) Forward(addr string) error {
-	u, err := url.Parse(addr)
-	if err == nil {
-		req.Server().processHttpRequest(u, req, req.resp, true)
-	}
-	return err
-}
-
-// hasSession return whether a request has own session
-func (req *request) hasSession() bool {
-	return req.sess != nil
 }

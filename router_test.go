@@ -1,4 +1,4 @@
-package zerver
+package zerver_rest
 
 import (
 	"testing"
