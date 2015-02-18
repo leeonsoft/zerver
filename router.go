@@ -302,14 +302,13 @@ func (rt *router) routeProcessor() *routeProcessor {
 // AddFuncHandler add function handler to router for given pattern and method
 func (rt *router) AddFuncHandler(pattern, method string, handler HandlerFunc) (err error) {
 	if fHandler := strach.funcHandler(pattern); fHandler == nil {
-		fHandler = new(funcHandler)
-		if err = fHandler.setMethod(method, handler); err == nil {
-			if err = rt.AddHandler(pattern, fHandler); err == nil {
-				strach.setFuncHandler(pattern, fHandler)
-			}
+		fHandler = newFuncHandler()
+		fHandler.setMethodHandler(method, handler)
+		if err = rt.AddHandler(pattern, fHandler); err == nil {
+			strach.setFuncHandler(pattern, fHandler)
 		}
 	} else {
-		err = fHandler.setMethod(method, handler)
+		fHandler.setMethodHandler(method, handler)
 	}
 	return
 }
@@ -407,7 +406,7 @@ func (rt *router) MatchHandlerFilters(url *url.URL) (handler Handler,
 	)
 	for continu {
 		if processor = rt.processor; processor != nil {
-			filters = append(filters, processor.filters)
+			filters = append(filters, processor.filters...)
 		}
 		pathIndex, values, rt, continu = rt.matchMulti(path, pathIndex, values)
 	}

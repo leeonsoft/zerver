@@ -1,7 +1,5 @@
 package zerver_rest
 
-import . "github.com/cosiner/golib/errors"
-
 type (
 	// HandlerFunc is the common request handler function type
 	HandlerFunc func(Request, Response)
@@ -40,11 +38,7 @@ type (
 	// user access of these method is forbiddened
 	funcHandler struct {
 		EmptyHandler
-		get    HandlerFunc
-		post   HandlerFunc
-		delete HandlerFunc
-		put    HandlerFunc
-		patch  HandlerFunc
+		handlers map[string]HandlerFunc
 	}
 )
 
@@ -76,40 +70,21 @@ func standardIndicate(method string, handler Handler) (handlerFunc HandlerFunc) 
 	return
 }
 
-// funcHandler implements MethodIndicator interface for custom method handler
-func (fh *funcHandler) Handler(method string) (handlerFunc HandlerFunc) {
-	switch method {
-	case GET:
-		handlerFunc = fh.get
-	case POST:
-		handlerFunc = fh.post
-	case DELETE:
-		handlerFunc = fh.delete
-	case PUT:
-		handlerFunc = fh.put
-	case PATCH:
-		handlerFunc = fh.patch
+// newFuncHandler create a new function handler
+func newFuncHandler() *funcHandler {
+	return &funcHandler{
+		handlers: make(map[string]HandlerFunc),
 	}
-	return
 }
 
-// setMethod setup method handler for funcHandler
-func (fh *funcHandler) setMethod(method string, handlerFunc HandlerFunc) error {
-	switch method {
-	case GET:
-		fh.get = handlerFunc
-	case POST:
-		fh.post = handlerFunc
-	case PUT:
-		fh.put = handlerFunc
-	case DELETE:
-		fh.delete = handlerFunc
-	case PATCH:
-		fh.patch = handlerFunc
-	default:
-		return Err("Not supported request method")
-	}
-	return nil
+// funcHandler implements MethodIndicator interface for custom method handler
+func (fh *funcHandler) Handler(method string) (handlerFunc HandlerFunc) {
+	return fh.handlers[method]
+}
+
+// setMethodHandler setup method handler for funcHandler
+func (fh *funcHandler) setMethodHandler(method string, handlerFunc HandlerFunc) {
+	fh.handlers[method] = handlerFunc
 }
 
 // EmptyHandler methods
