@@ -28,9 +28,9 @@ type (
 		// AddWebSocketHandler add a websocket handler
 		AddWebSocketHandler(pattern string, handler WebSocketHandler) error
 
-		// MatchHandler match given url to find  final handler, filters must be nil
-		// it's just for signature compatible with MatchHandlerFilters
-		MatchHandler(url *url.URL) (Handler, URLVarIndexer, []Filter)
+		// // MatchHandler match given url to find  final handler, filters must be nil
+		// // it's just for signature compatible with MatchHandlerFilters
+		// MatchHandler(url *url.URL) (Handler, URLVarIndexer, []Filter)
 		// MatchHandlerFilters match given url to find all matched filters and final handler
 		MatchHandlerFilters(url *url.URL) (Handler, URLVarIndexer, []Filter)
 		// MatchWebSocketHandler match given url to find a matched websocket handler
@@ -380,20 +380,20 @@ func (rt *router) MatchWebSocketHandler(url *url.URL) (WebSocketHandler, URLVarI
 	return nil, nilVarIndexer
 }
 
-// MatchHandler match url to find final handler, last returned value will only
-// be nil, it appeared only for compate with MatchHandlerFilters
-func (rt *router) MatchHandler(url *url.URL) (Handler, URLVarIndexer, []Filter) {
-	path := url.Path
-	rt, values := rt.matchOne(path)
-	if rt != nil {
-		if processor := rt.processor; processor != nil {
-			if hp := processor.handlerProcessor; hp != nil {
-				return hp.handler, newVarIndexer(hp.vars, values), nil
-			}
-		}
-	}
-	return nil, nilVarIndexer, nil
-}
+// // MatchHandler match url to find final handler, last returned value will only
+// // be nil, it appeared only for compate with MatchHandlerFilters
+// func (rt *router) MatchHandler(url *url.URL) (Handler, URLVarIndexer, []Filter) {
+// 	path := url.Path
+// 	rt, values := rt.matchOne(path)
+// 	if rt != nil {
+// 		if processor := rt.processor; processor != nil {
+// 			if hp := processor.handlerProcessor; hp != nil {
+// 				return hp.handler, newVarIndexer(hp.vars, values), nil
+// 			}
+// 		}
+// 	}
+// 	return nil, nilVarIndexer, nil
+// }
 
 // MatchHandlerFilters match url to fin final handler and each filters
 func (rt *router) MatchHandlerFilters(url *url.URL) (handler Handler,
@@ -405,26 +405,21 @@ func (rt *router) MatchHandlerFilters(url *url.URL) (handler Handler,
 		path      = url.Path
 		processor *routeProcessor
 	)
-	if processor = rt.processor; processor != nil {
-		filters = append(rt.processor.filters)
-	}
 	for continu {
+		if processor = rt.processor; processor != nil {
+			filters = append(filters, processor.filters)
+		}
 		pathIndex, values, rt, continu = rt.matchMulti(path, pathIndex, values)
-		if rt != nil {
-			if processor = rt.processor; processor != nil {
-				if continu {
-					filters = append(filters, processor.filters...)
-				} else {
-					if hp := processor.handlerProcessor; hp != nil {
-						handler, indexer = hp.handler, newVarIndexer(hp.vars, values)
-					}
-				}
+	}
+	if rt != nil {
+		if processor = rt.processor; processor != nil {
+			if hp := processor.handlerProcessor; hp != nil {
+				handler, indexer = hp.handler, newVarIndexer(hp.vars, values)
+				return
 			}
 		}
 	}
-	if indexer == nil {
-		indexer = nilVarIndexer
-	}
+	indexer = nilVarIndexer
 	return
 }
 
