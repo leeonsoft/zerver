@@ -9,9 +9,6 @@ import (
 	. "github.com/cosiner/golib/errors"
 )
 
-//==============================================================================
-//                           Server Init
-//==============================================================================
 type (
 	// Server represent a web server
 	Server struct {
@@ -56,9 +53,6 @@ func (s *Server) StartTLS(listenAddr, certFile, keyFile string) error {
 	return http.ListenAndServeTLS(listenAddr, certFile, keyFile, s)
 }
 
-//==============================================================================
-//                          Server Process
-//==============================================================================
 // ServHttp serve for http reuest
 // find handler and resolve path, find filters, process
 func (s *Server) ServeHTTP(w http.ResponseWriter, request *http.Request) {
@@ -96,9 +90,6 @@ func (s *Server) serveHttp(w http.ResponseWriter, request *http.Request) {
 	}
 }
 
-//==============================================================================
-//                           Server Handler
-//==============================================================================
 // Get register a function handler process GET request for given pattern
 func (s *Server) Get(pattern string, handlerFunc HandlerFunc) {
 	s.AddFuncHandler(pattern, GET, handlerFunc)

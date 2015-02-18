@@ -13,7 +13,7 @@ type (
 		Filter(Request, Response, FilterChain)
 	}
 
-	// FilterChain represent a chain of filter, the last is final handler
+	// FilterChain represent a chain of filter, the last is final handler,
 	// to continue the chain, must call chain.Filter
 	FilterChain interface {
 		Filter(Request, Response)

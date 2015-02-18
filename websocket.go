@@ -8,7 +8,7 @@ import (
 )
 
 type (
-	// webSocketConn represent an websocket connection
+	// WebSocketConn represent an websocket connection
 	// WebSocket connection is not be managed in server,
 	// it's handler's responsibility to close connection
 	WebSocketConn interface {
