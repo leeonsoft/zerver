@@ -6,7 +6,7 @@ import (
 	"github.com/cosiner/golib/test"
 )
 
-func TestCompile(t *testing.T) {
+func testCompile(t *testing.T) {
 	tt := test.WrapTest(t)
 	tt.Log(compile("/:user/:id/:a"))
 	tt.Log(compile("/user/:a/|abc/"))
@@ -311,23 +311,5 @@ func BenchmarkMatchRouteNode(b *testing.B) {
 		if n == nil {
 			b.Fail()
 		}
-	}
-}
-
-func TestMatchUrlValue(t *testing.T) {
-	tt := test.WrapTest(t)
-	path := "/repos/julienschmidt/httprouter/stargazers"
-	_, v := sn.matchOne(path)
-	tt.Log(v)
-}
-
-func BenchmarkAccessUrlValue(b *testing.B) {
-	// tt := test.WrapTest(b)
-	path := "/repos/julienschmidt/httprouter/stargazers"
-	_, v := sn.matchOne(path)
-	indexer := newVarIndexer(map[string]int{"name": 0, "proj": 1}, v)
-	for i := 0; i < b.N; i++ {
-		// _ = indexer.UrlVar("name")
-		_ = indexer.UrlVar("proj")
 	}
 }
