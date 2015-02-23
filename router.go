@@ -507,12 +507,12 @@ func (rt *router) addChild(b byte, n *router) {
 // matchMulti match multi route node
 // returned value:(first:next path start index, second:if continue, it's next node to match,
 // else it's final match node, last:whether continu match)
-func (rt *router) matchMulti(path string, pathIndex int, vars []string) (int,
+func (rt *router) matchMulti(path string, pathIndex int, values []string) (int,
 	[]string, *router, bool) {
 	str, strIndex := rt.str, 1
 	pathIndex++
 	strLen, pathLen := len(str), len(path)
-	for strIndex != strLen {
+	for strIndex < strLen {
 		if pathIndex != pathLen {
 			c := str[strIndex]
 			strIndex++
@@ -525,9 +525,9 @@ func (rt *router) matchMulti(path string, pathIndex int, vars []string) (int,
 				for pathIndex < pathLen && path[pathIndex] != '/' {
 					pathIndex++
 				}
-				vars = append(vars, path[start:pathIndex])
+				values = append(values, path[start:pathIndex])
 			case _REMAINSALL: // parse end, full matched
-				vars = append(vars, path[pathIndex:pathLen])
+				values = append(values, path[pathIndex:pathLen])
 				pathIndex = pathLen
 				strIndex = strLen
 			default:
@@ -553,7 +553,7 @@ func (rt *router) matchMulti(path string, pathIndex int, vars []string) (int,
 			continu = true
 		}
 	}
-	return pathIndex, vars, rt, continu
+	return pathIndex, values, rt, continu
 }
 
 // matchOne match one longest route node and return values of path variable
@@ -561,9 +561,9 @@ func (rt *router) matchOne(path string) (*router, []string) {
 	var (
 		str                string
 		strIndex, strLen   int
-		pathIndex, pathLen = 0, len(path)
-		node               = rt
-		values             = make([]string, 0, PathVarCount)
+		pathIndex, pathLen          = 0, len(path)
+		node                        = rt
+		values             []string = nil
 	)
 	for node != nil {
 		// skip first character, if it's root node, first char '/' can be safety skipped
@@ -572,7 +572,7 @@ func (rt *router) matchOne(path string) (*router, []string) {
 		str, strIndex = rt.str, 1
 		pathIndex++
 		strLen = len(str)
-		for strIndex != strLen {
+		for strIndex < strLen {
 			if pathIndex != pathLen {
 				c := str[strIndex]
 				strIndex++
@@ -585,8 +585,14 @@ func (rt *router) matchOne(path string) (*router, []string) {
 					for pathIndex < pathLen && path[pathIndex] != '/' {
 						pathIndex++
 					}
+					if values == nil {
+						values = make([]string, 0, PathVarCount)
+					}
 					values = append(values, path[start:pathIndex])
 				case _REMAINSALL: // parse end, full matched
+					if values == nil {
+						values = make([]string, 0, PathVarCount)
+					}
 					values = append(values, path[pathIndex:pathLen])
 					pathIndex = pathLen
 					strIndex = strLen
