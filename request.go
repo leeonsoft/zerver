@@ -13,6 +13,8 @@ type (
 	Request interface {
 		RemoteAddr() string
 		RemoteIP() string
+		Param(name string) string
+		Params(name string) []string
 		UserAgent() string
 		URL() *url.URL
 		Method() string
@@ -34,6 +36,7 @@ type (
 		request *http.Request
 		method  string
 		header  http.Header
+		params  url.Values
 	}
 )
 
@@ -87,6 +90,31 @@ func (req *request) RemoteAddr() string {
 
 func (req *request) RemoteIP() string {
 	return strings.Split(req.RemoteAddr(), ":")[1]
+}
+
+// Param return request parameter with name
+func (req *request) Param(name string) (value string) {
+	params := req.Params(name)
+	if len(params) > 0 {
+		value = params[0]
+	}
+	return
+}
+
+// Params return request parameters with name
+func (req *request) Params(name string) []string {
+	params, request := req.params, req.request
+	if params == nil {
+		switch req.method {
+		case GET:
+			params = request.URL.Query()
+		default:
+			request.ParseForm()
+			params = request.PostForm
+		}
+		req.params = params
+	}
+	return params[name]
 }
 
 // UserAgent return user's agent identify

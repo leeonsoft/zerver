@@ -106,7 +106,7 @@ func (resp *response) SetContentEncoding(enc string) {
 
 // SetSecureCookie setup response cookie
 func (resp *response) SetCookie(name, value string, lifetime int) {
-	resp.SetHeader(HEADER_SETCOOKIE, resp.newCookie(name, value, lifetime))
+	resp.AddHeader(HEADER_SETCOOKIE, resp.newCookie(name, value, lifetime))
 }
 
 // SetSecureCookie setup response cookie with secureity
