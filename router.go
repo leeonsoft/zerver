@@ -518,14 +518,14 @@ func (rt *router) matchMulti(path string, pathIndex int, vars []string) (int,
 			switch c {
 			case path[pathIndex]: // else check character MatchPath or not
 				pathIndex++
-			case '*':
+			case _WILDCARD:
 				// if read '*', MatchPath until next '/'
 				start := pathIndex
 				for pathIndex < pathLen && path[pathIndex] != '/' {
 					pathIndex++
 				}
 				vars = append(vars, path[start:pathIndex])
-			case '-': // parse end, full matched
+			case _REMAINSALL: // parse end, full matched
 				vars = append(vars, path[pathIndex:pathLen])
 				pathIndex = pathLen
 				strIndex = strLen
@@ -578,14 +578,14 @@ func (rt *router) matchOne(path string) (*router, []string) {
 				switch c {
 				case path[pathIndex]: // else check character MatchPath or not
 					pathIndex++
-				case '*':
+				case _WILDCARD:
 					// if read '*', MatchPath until next '/'
 					start := pathIndex
 					for pathIndex < pathLen && path[pathIndex] != '/' {
 						pathIndex++
 					}
 					values = append(values, path[start:pathIndex])
-				case '-': // parse end, full matched
+				case _REMAINSALL: // parse end, full matched
 					values = append(values, path[pathIndex:pathLen])
 					pathIndex = pathLen
 					strIndex = strLen

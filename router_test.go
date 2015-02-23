@@ -6,7 +6,7 @@ import (
 	"github.com/cosiner/golib/test"
 )
 
-func TestCompile(t *testing.T) {
+func testCompile(t *testing.T) {
 	tt := test.WrapTest(t)
 	tt.Log(compile("/:user/:id/:a"))
 	tt.Log(compile("/user/:a/|abc/"))
@@ -285,7 +285,13 @@ func rt() *router {
 	return node
 }
 
-var sn = rt()
+func nrt() *router {
+	rt := new(router)
+	rt.AddFuncHandler("/user/:id/exist", "GET", newFuncHandler().Delete)
+	return rt
+}
+
+var sn = nrt()
 
 func BenchmarkMatchRouteNode(b *testing.B) {
 	// tt := test.WrapTest(b)
@@ -293,41 +299,23 @@ func BenchmarkMatchRouteNode(b *testing.B) {
 	// path := []string{
 	// path := "/legacy/issues/search/aaa/bbb/ccc/ddd"
 	// path := "/user/repos"
-	path := "/repos/julienschmidt/httprouter/stargazers"
+	// path := "/repos/julienschmidt/httprouter/stargazers"
+	path := "/user/aa/exist"
 	// "/repos/123/123/git/refs",
 	// }
 	// cont := false
 	// n := sn
 	for i := 0; i < b.N; i++ {
-		// for {
-		// if idx, n, cont = n.MatchPath(p, idx); !cont {
+		// pathIndex := 0
+		// var vars []string
+		// var continu = true
+		// n := sn
+		// for continu {
+		// 	pathIndex, vars, n, continu = n.matchMulti(path, pathIndex, vars)
+		// }
 		n, _ := sn.matchOne(path)
-		// if n == nil {
-		// b.Fail()
-		// }
-		// break
-		// }
-		// }
 		if n == nil {
 			b.Fail()
 		}
-	}
-}
-
-func TestMatchUrlValue(t *testing.T) {
-	tt := test.WrapTest(t)
-	path := "/repos/julienschmidt/httprouter/stargazers"
-	_, v := sn.matchOne(path)
-	tt.Log(v)
-}
-
-func BenchmarkAccessUrlValue(b *testing.B) {
-	// tt := test.WrapTest(b)
-	path := "/repos/julienschmidt/httprouter/stargazers"
-	_, v := sn.matchOne(path)
-	indexer := newVarIndexer(map[string]int{"name": 0, "proj": 1}, v)
-	for i := 0; i < b.N; i++ {
-		// _ = indexer.UrlVar("name")
-		_ = indexer.UrlVar("proj")
 	}
 }
