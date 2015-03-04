@@ -1,15 +1,20 @@
 package zerver_rest
 
-import "sync"
+import (
+	. "github.com/cosiner/golib/errors"
 
-type serverPool struct {
+	"sync"
+)
+
+type ServerPool struct {
 	requestPool    *sync.Pool
 	responsePool   *sync.Pool
 	varIndexerPool *sync.Pool
 	varsPool       *sync.Pool
+	otherPools     map[string]*sync.Pool
 }
 
-var pool *serverPool = &serverPool{
+var Pool *ServerPool = &ServerPool{
 	requestPool: &sync.Pool{
 		New: func() interface{} {
 			return new(request)
@@ -30,36 +35,53 @@ var pool *serverPool = &serverPool{
 			return make([]string, 0, PathVarCount)
 		},
 	},
+	otherPools: make(map[string]*sync.Pool),
 }
 
-func (pool *serverPool) newRequest() *request {
+func (pool *ServerPool) ReigisterPool(name string, newFunc func() interface{}) error {
+	op := pool.otherPools
+	if _, has := op[name]; has {
+		return Err("Pool for " + name + " already exist")
+	}
+	op[name] = &sync.Pool{New: newFunc}
+}
+
+func (pool *ServerPool) NewFrom(name string) interface{} {
+	return pool.otherPools[name].Get()
+}
+
+func (pool *ServerPool) newRequest() *request {
 	return pool.requestPool.Get().(*request)
 }
 
-func (pool *serverPool) newResponse() *response {
+func (pool *ServerPool) newResponse() *response {
 	return pool.responsePool.Get().(*response)
 }
 
-func (pool *serverPool) newVarIndexer() *urlVarIndexer {
+func (pool *ServerPool) newVarIndexer() *urlVarIndexer {
 	return pool.varIndexerPool.Get().(*urlVarIndexer)
 }
 
-func (pool *serverPool) newVars() []string {
+func (pool *ServerPool) newVars() []string {
 	return pool.varsPool.Get().([]string)
 }
 
-func (pool *serverPool) recycleRequest(req *request) {
+func (pool *ServerPool) recycleRequest(req *request) {
 	pool.requestPool.Put(req)
 }
 
-func (pool *serverPool) recycleResponse(resp *response) {
+func (pool *ServerPool) recycleResponse(resp *response) {
 	pool.responsePool.Put(resp)
 }
 
-func (pool *serverPool) recycleVarIndexer(indexer *urlVarIndexer) {
+func (pool *ServerPool) recycleVarIndexer(indexer *urlVarIndexer) {
 	pool.varIndexerPool.Put(indexer)
 }
 
-func (pool *serverPool) recycleVars(vars []string) {
+func (pool *ServerPool) recycleVars(vars []string) {
 	pool.varsPool.Put(vars[:0])
+}
+
+func (pool *ServerPool) RecycleTo(name string, value interface{}) {
+	pool.otherPools[name].Put(value)
 }

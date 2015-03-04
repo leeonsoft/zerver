@@ -67,16 +67,6 @@ func (resp *response) contentType() string {
 	return resp.header.Get(HEADER_CONTENTTYPE)
 }
 
-// newCookie create a new Cookie and return it's displayed string
-// parameter lifetime is time by second
-func (*response) newCookie(name, value string, lifetime int) string {
-	return (&http.Cookie{
-		Name:   name,
-		Value:  value,
-		MaxAge: lifetime,
-	}).String()
-}
-
 // ReportStatus report an http status with given status code
 func (resp *response) ReportStatus(statusCode int) {
 	resp.WriteHeader(statusCode)
@@ -105,6 +95,16 @@ func (resp *response) SetContentType(typ string) {
 // SetContentEncoding set content encoding of response
 func (resp *response) SetContentEncoding(enc string) {
 	resp.SetHeader(HEADER_CONTENTENCODING, enc)
+}
+
+// newCookie create a new Cookie and return it's displayed string
+// parameter lifetime is time by second
+func (*response) newCookie(name, value string, lifetime int) string {
+	return (&http.Cookie{
+		Name:   name,
+		Value:  value,
+		MaxAge: lifetime,
+	}).String()
 }
 
 // SetSecureCookie setup response cookie

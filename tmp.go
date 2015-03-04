@@ -1,23 +1,21 @@
-// this file is tmp before server start, and will be destroied
-// at the moment of server init
 package zerver_rest
 
 type _tmp struct {
-	_funcHandlers map[string]*funcHandler // function handlers
+	_funcHandlers map[string]*funcHandler // function handlers - pattern->handler
 }
 
 var tmp = &_tmp{
 	_funcHandlers: make(map[string]*funcHandler),
 }
 
-func (s *_tmp) destroy() {
-	s._funcHandlers = nil
+func (t *_tmp) destroy() {
+	t._funcHandlers = nil
 }
 
-func (s *_tmp) funcHandler(pattern string) *funcHandler {
-	return s._funcHandlers[pattern]
+func (t *_tmp) funcHandler(pattern string) *funcHandler {
+	return t._funcHandlers[pattern]
 }
 
-func (s *_tmp) setFuncHandler(pattern string, handler *funcHandler) {
-	s._funcHandlers[pattern] = handler
+func (t *_tmp) setFuncHandler(pattern string, handler *funcHandler) {
+	t._funcHandlers[pattern] = handler
 }
