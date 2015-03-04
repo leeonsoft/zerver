@@ -460,7 +460,7 @@ func (rt *router) MatchHandlerFilters(url *url.URL) (handler Handler,
 				filters = append(filters, pfs...)
 			}
 		}
-		pathIndex, values, rt, continu = rt.matchMulti(path, pathIndex, values)
+		pathIndex, values, rt, continu = rt.matchMultiple(path, pathIndex, values)
 	}
 	if rt != nil {
 		if processor = rt.processor; processor != nil {
@@ -555,10 +555,10 @@ func (rt *router) addChild(b byte, n *router) {
 	rt.chars, rt.childs = chars, childs
 }
 
-// matchMulti match multi route node
+// matchMultiple match multi route node
 // returned value:(first:next path start index, second:if continue, it's next node to match,
 // else it's final match node, last:whether continu match)
-func (rt *router) matchMulti(path string, pathIndex int, values []string) (int,
+func (rt *router) matchMultiple(path string, pathIndex int, values []string) (int,
 	[]string, *router, bool) {
 	str, strIndex := rt.str, 1
 	pathIndex++
@@ -663,15 +663,6 @@ func (rt *router) matchOne(path string, values []string) (*router, []string) {
 	return rt, values
 }
 
-// accessAllChilds access all childs of node
-func (rt *router) accessAllChilds(fn func(*router) bool) {
-	for _, n := range rt.childs {
-		if !fn(n) {
-			break
-		}
-	}
-}
-
 // PrintRouteTree print an route tree
 // every level will be seperated by "-"
 func PrintRouteTree(rt Router) {
@@ -689,4 +680,13 @@ func printRouteTree(root *router, parentPath string) {
 		printRouteTree(n, cur)
 		return true
 	})
+}
+
+// accessAllChilds access all childs of node
+func (rt *router) accessAllChilds(fn func(*router) bool) {
+	for _, n := range rt.childs {
+		if !fn(n) {
+			break
+		}
+	}
 }

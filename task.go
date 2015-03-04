@@ -5,11 +5,7 @@ type (
 	Task interface {
 		URLVarIndexer
 		Value() interface{}
-	}
-
-	task struct {
-		URLVarIndexer
-		value interface{}
+		serverGetter
 	}
 
 	TaskHandlerFunc func(Task)
@@ -19,17 +15,24 @@ type (
 		Destroy()
 		Handle(Task)
 	}
+
+	task struct {
+		serverGetter
+		URLVarIndexer
+		value interface{}
+	}
 )
 
-func (t *task) Value() interface{} {
-	return t.value
-}
-
-func newTask(indexer URLVarIndexer, value interface{}) Task {
+func newTask(s serverGetter, indexer URLVarIndexer, value interface{}) Task {
 	return &task{
+		serverGetter:  s,
 		URLVarIndexer: indexer,
 		value:         value,
 	}
+}
+
+func (t *task) Value() interface{} {
+	return t.value
 }
 
 func (TaskHandlerFunc) Init(*Server) error  { return nil }

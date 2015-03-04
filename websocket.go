@@ -15,10 +15,12 @@ type (
 		URLVarIndexer
 		net.Conn
 		URL() *url.URL
+		Server() *Server
 	}
 
 	// webSocketConn is the actual websocket connection
 	webSocketConn struct {
+		serverGetter
 		*websocket.Conn
 		URLVarIndexer
 	}
@@ -36,8 +38,9 @@ type (
 
 // newWebSocketConn wrap a exist websocket connection and url variables to a
 // new webSocketConn
-func newWebSocketConn(conn *websocket.Conn, varIndexer URLVarIndexer) *webSocketConn {
+func newWebSocketConn(s serverGetter, conn *websocket.Conn, varIndexer URLVarIndexer) *webSocketConn {
 	return &webSocketConn{
+		serverGetter:  s,
 		Conn:          conn,
 		URLVarIndexer: varIndexer,
 	}

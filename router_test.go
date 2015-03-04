@@ -285,35 +285,23 @@ func rt() *router {
 	return node
 }
 
-func nrt() *router {
-	rt := new(router)
-	rt.AddFuncHandler("/user/:id/exist", "GET", newFuncHandler().Delete)
-	return rt
-}
-
-var sn = nrt()
+var r = rt()
 
 func BenchmarkMatchRouteNode(b *testing.B) {
 	// tt := test.WrapTest(b)
-	// path := []string{
-	// path := []string{
 	// path := "/legacy/issues/search/aaa/bbb/ccc/ddd"
 	// path := "/user/repos"
-	// path := "/repos/julienschmidt/httprouter/stargazers"
-	path := "/user/aa/exist"
-	// "/repos/123/123/git/refs",
-	// }
-	// cont := false
-	// n := sn
+	path := "/repos/julienschmidt/httprouter/stargazers"
+	// path := "/user/aa/exist"
 	for i := 0; i < b.N; i++ {
 		// pathIndex := 0
 		// var vars []string
 		// var continu = true
-		// n := sn
+		// n := r
 		// for continu {
 		// 	pathIndex, vars, n, continu = n.matchMulti(path, pathIndex, vars)
 		// }
-		n, _ := sn.matchOne(path)
+		n, _ := r.matchOne(path)
 		if n == nil {
 			b.Fail()
 		}

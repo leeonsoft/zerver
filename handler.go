@@ -56,7 +56,7 @@ func IndicateHandler(method string, handler Handler) HandlerFunc {
 	}
 }
 
-// standardIndicate normal indicate method handle function
+// standardIndicate normally indicate method handle function
 // each method indicate the function with same name, such as GET->Get...
 func standardIndicate(method string, handler Handler) (handlerFunc HandlerFunc) {
 	switch method {

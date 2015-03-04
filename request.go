@@ -29,7 +29,7 @@ type (
 	// request represent an income request
 	request struct {
 		URLVarIndexer
-		server  *Server
+		serverGetter
 		request *http.Request
 		method  string
 		header  http.Header
@@ -38,14 +38,17 @@ type (
 )
 
 // newRequest create a new request
-func newRequest(requ *http.Request, varIndexer URLVarIndexer) Request {
+func newRequest(s serverGetter, requ *http.Request, varIndexer URLVarIndexer) Request {
 	req := pool.newRequest()
+	req.serverGetter = s
 	req.request = requ
 	req.header = requ.Header
 	req.URLVarIndexer = varIndexer
 	method := requ.Method
-	if m := requ.Header.Get("X-HTTP-Method-Override"); method == POST && m != "" {
-		method = m
+	if method == POST {
+		if m := requ.Header.Get("X-HTTP-Method-Override"); m != "" {
+			method = m
+		}
 	}
 	req.method = strings.ToUpper(method)
 	return req
@@ -55,7 +58,7 @@ func (req *request) destroy() {
 	req.URLVarIndexer.destroy()
 	pool.recycleRequest(req)
 	req.request = nil
-	req.server = nil
+	req.serverGetter = nil
 	req.header = nil
 	req.URLVarIndexer = nil
 	req.params = nil
@@ -63,10 +66,6 @@ func (req *request) destroy() {
 
 func (req *request) Read(data []byte) (int, error) {
 	return req.request.Body.Read(data)
-}
-
-func (req *request) Server() *Server {
-	return req.server
 }
 
 // Method return method of request

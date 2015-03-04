@@ -33,17 +33,21 @@ func main() {
 * Tree-based mux/router
 * Filter Chain supported
 * Builtin WebSocket supported
+* Builtin Task supported
 
 -------------------------------------------------------------------------------
 #### Note
 The core of Zerver-REST only define some specifications, it's only a router, and only support output bytes, multiple output format like json/xml/gob should use third party libraries.
 
 ##### Router
-Zerver-REST's Router is based on prefix-tree, it's transparent to user.
+Zerver-REST's Router is based on prefix-tree, it's transparent to user, standard router only match the path of url.
 It now support three routes:
 * static route: such as /user/12345/info
 * variables route: such as /user/:id/info, id is a variable in route, variable value will be injected to Request
-* catch-all route: such as /home/*subpath, subpath is a variable in route, it will catch remains all url path, it should appeared in last of route for any route path after it will be ingored
+* catch-all route: such as /home/*subpath, subpath is a variable in route, it will catch remains all url path, it should appeared in last of route for any route path after it will be ingored.
+
+__Customization__:
+Zerver also support customed Router by `NewServerWith`, user can wrap standard router to get a more powerful Router with great features, such as multiple domains.
 
 __Route Match__:
 The standard Router will not performed backtracking, match priority:static > variable > catchall.
@@ -67,6 +71,13 @@ http.ResponseWriter. The Request is also a URLVarIndexer.
 
 #### [WebSocket]Handler
 The most important component of Zerver is Handler, which handles http request for matched route. For HTTP Handler, it accept Request and Response, all things is done with them, Request is input, and Response is output. For WebSocketHandler, it accept WebSocketConn which represent a websocket connection, it's input and output.
+
+#### TaskHandler
+Sometimes we need start additional task in `[WebSocket]Handler`, such as send a verify email to user after process user register.
+
+Zerver provide a `TaskHandler` to reach this. `TaskHandler` isn't exposed to client, it's more likely a backend service or service dispatcher.
+
+Register a TaskHandler by `server.AddTaskHandler/AddFuncTaskHandler`, start a task by `server.StartTask/StartAsyncTask`.
 
 #### Filter
 Filter will be called before any Handler, and it's only filter Handler, not WebSocketHandler, it accept Request, Response, FilterChain. all matched filters will be packed as a FilterChain, to continue process http request, you must call FilterChain.Filter(Request, Response), otherwise, process is stoped.

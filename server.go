@@ -16,6 +16,10 @@ type (
 		Router
 		AttrContainer
 	}
+
+	serverGetter interface {
+		Server() *Server
+	}
 )
 
 // NewServer create a new server
@@ -26,6 +30,10 @@ func NewServer() *Server {
 // NewServerWith create a new server with given router
 func NewServerWith(rt Router) *Server {
 	return &Server{Router: rt, AttrContainer: NewLockedAttrContainer()}
+}
+
+func (s *Server) Server() *Server {
+	return s
 }
 
 // Start start server
@@ -85,7 +93,7 @@ func (s *Server) serveWebSocket(w http.ResponseWriter, request *http.Request) {
 	if handler == nil {
 		w.WriteHeader(http.StatusNotFound)
 	} else if conn, err := websocket.UpgradeWebsocket(w, request, nil); err == nil {
-		handler.Handle(newWebSocketConn(conn, indexer))
+		handler.Handle(newWebSocketConn(s, conn, indexer))
 	}
 }
 
@@ -94,7 +102,7 @@ func (s *Server) serveHTTP(w http.ResponseWriter, request *http.Request) {
 	url := request.URL
 	url.Host = request.Host
 	handler, indexer, filters := s.MatchHandlerFilters(url)
-	req, resp := newRequest(request, indexer), newResponse(w)
+	req, resp := newRequest(s, request, indexer), newResponse(w)
 	if handler != nil {
 		if handlerFunc := IndicateHandler(req.Method(), handler); handlerFunc == nil {
 			resp.ReportStatus(http.StatusMethodNotAllowed)
@@ -120,7 +128,7 @@ func (s *Server) serveTask(path string, value interface{}) {
 	if handler == nil {
 		s.PanicServer("No task handler found for " + path)
 	}
-	handler.Handle(newTask(indexer, value))
+	handler.Handle(newTask(s, indexer, value))
 }
 
 // Get register a function handler process GET request for given pattern
