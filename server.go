@@ -14,16 +14,18 @@ type (
 	// Server represent a web server
 	Server struct {
 		Router
+		AttrContainer
 	}
 )
 
 // NewServer create a new server
 func NewServer() *Server {
-	return &Server{NewRouter()}
+	return &Server{Router: NewRouter(), AttrContainer: NewLockedAttrContainer()}
 }
 
+// NewServerWith create a new server with given router
 func NewServerWith(rt Router) *Server {
-	return &Server{rt}
+	return &Server{Router: rt, AttrContainer: NewLockedAttrContainer()}
 }
 
 // Start start server
@@ -37,6 +39,9 @@ func (s *Server) start() {
 		return true
 	}, func(websocketHandler WebSocketHandler) bool {
 		OnErrPanic(websocketHandler.Init(s))
+		return true
+	}, func(taskHandler TaskHandler) bool {
+		OnErrPanic(taskHandler.Init(s))
 		return true
 	})
 	log.Println("Server Start")
@@ -62,6 +67,16 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, request *http.Request) {
 	} else {
 		s.serveHTTP(w, request)
 	}
+}
+
+// StartTask add a synchronous task
+func (s *Server) StartTask(path string, value interface{}) {
+	s.serveTask(path, value)
+}
+
+// StartAsyncTask add a asynchronous task
+func (s *Server) StartAsyncTask(path string, value interface{}) {
+	go s.serveTask(path, value)
 }
 
 // serveWebSocket serve for websocket protocal
@@ -93,6 +108,19 @@ func (s *Server) serveHTTP(w http.ResponseWriter, request *http.Request) {
 	}
 }
 
+// serveTask serve for asynchronous task
+func (s *Server) serveTask(path string, value interface{}) {
+	u, err := url.Parse(path)
+	if err != nil {
+		s.PanicServer(err.Error())
+	}
+	handler, indexer := s.MatchTaskHandler(u)
+	if handler == nil {
+		s.PanicServer("No task handler found for " + path)
+	}
+	handler.Handle(newTask(indexer, value))
+}
+
 // Get register a function handler process GET request for given pattern
 func (s *Server) Get(pattern string, handlerFunc HandlerFunc) {
 	s.AddFuncHandler(pattern, GET, handlerFunc)
@@ -118,24 +146,7 @@ func (s *Server) Patch(pattern string, handlerFunc HandlerFunc) {
 	s.AddFuncHandler(pattern, PATCH, handlerFunc)
 }
 
-func (s *Server) addTask(path string, req Request) {
-	u, err := url.Parse(path)
-	if err != nil {
-		s.PanicServer(err.Error())
-	}
-	handler, indexer := s.MatchTaskHandler(u)
-	if handler == nil {
-		s.PanicServer("No task handler found for " + path)
-	}
-	req.setURL(u)
-	req.setURLVarIndexer(indexer)
-	handler.Handle(req)
-}
-
-func (s *Server) AddTask(path string, req Request) {
-	go s.addTask(path, req)
-}
-
+// PanicServer create a new goroutine, it force panic whole process
 func (*Server) PanicServer(s string) {
 	go panic(s)
 }

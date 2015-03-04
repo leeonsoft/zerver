@@ -12,7 +12,7 @@ type (
 	// Router is responsible for route manage and match
 	Router interface {
 		// Init init handlers and filters, websocket handlers
-		Init(func(Handler) bool, func(Filter) bool, func(WebSocketHandler) bool)
+		Init(func(Handler) bool, func(Filter) bool, func(WebSocketHandler) bool, func(TaskHandler) bool)
 		// Destroy destroy router, also responsible for destroy all handlers and filters
 		Destroy()
 
@@ -33,9 +33,6 @@ type (
 		// AddTaskHandler
 		AddTaskHandler(pattern string, handler TaskHandler) error
 
-		// MatchHandler match given url to find  final handler, filters must be nil
-		// it's just for signature compatible with MatchHandlerFilters
-		MatchHandler(url *url.URL) (Handler, URLVarIndexer, []Filter)
 		// MatchHandlerFilters match given url to find all matched filters and final handler
 		MatchHandlerFilters(url *url.URL) (Handler, URLVarIndexer, []Filter)
 		// MatchWebSocketHandler match given url to find a matched websocket handler
@@ -233,7 +230,8 @@ func (v *pathVars) ScanURLVars(vars ...*string) {
 // init init handler and filters hold by routeProcessor
 func (rp *routeProcessor) init(initHandler func(Handler) bool,
 	initFilter func(Filter) bool,
-	initWebSocketHandler func(WebSocketHandler) bool) bool {
+	initWebSocketHandler func(WebSocketHandler) bool,
+	initTaskHandler func(TaskHandler) bool) bool {
 	continu := true
 	if rp.handlerProcessor != nil {
 		continu = initHandler(rp.handlerProcessor.handler)
@@ -246,6 +244,9 @@ func (rp *routeProcessor) init(initHandler func(Handler) bool,
 	}
 	if continu && rp.wsHandlerProcessor != nil {
 		continu = initWebSocketHandler(rp.wsHandlerProcessor.wsHandler)
+	}
+	if continu && rp.taskHandlerProcessor != nil {
+		continu = initTaskHandler(rp.taskHandlerProcessor.taskHandler)
 	}
 	return continu
 }
@@ -261,6 +262,9 @@ func (rp *routeProcessor) destroy() {
 	if rp.wsHandlerProcessor != nil {
 		rp.wsHandlerProcessor.wsHandler.Destroy()
 	}
+	if rp.taskHandlerProcessor != nil {
+		rp.taskHandlerProcessor.taskHandler.Destroy()
+	}
 }
 
 // NewRouter create a new Router
@@ -271,23 +275,25 @@ func NewRouter() Router {
 // Init init all handlers, filters, websocket handlers in route tree
 func (rt *router) Init(initHandler func(Handler) bool,
 	initFilter func(Filter) bool,
-	initWebSocketHandler func(WebSocketHandler) bool) {
-	rt.init(initHandler, initFilter, initWebSocketHandler)
+	initWebSocketHandler func(WebSocketHandler) bool,
+	initTaskHandler func(TaskHandler) bool) {
+	rt.init(initHandler, initFilter, initWebSocketHandler, initTaskHandler)
 }
 
 // Init init all handlers, filters, websocket handlers in route tree
 func (rt *router) init(initHandler func(Handler) bool,
 	initFilter func(Filter) bool,
-	initWebSocketHandler func(WebSocketHandler) bool) bool {
+	initWebSocketHandler func(WebSocketHandler) bool,
+	initTaskHandler func(TaskHandler) bool) bool {
 	continu := true
 	if rt.processor != nil {
-		continu = rt.processor.init(initHandler, initFilter, initWebSocketHandler)
+		continu = rt.processor.init(initHandler, initFilter, initWebSocketHandler, initTaskHandler)
 	}
 	for _, c := range rt.childs {
 		if !continu {
 			break
 		}
-		continu = c.init(initHandler, initFilter, initWebSocketHandler)
+		continu = c.init(initHandler, initFilter, initWebSocketHandler, initTaskHandler)
 	}
 	return continu
 }
@@ -313,11 +319,11 @@ func (rt *router) routeProcessor() *routeProcessor {
 
 // AddFuncHandler add function handler to router for given pattern and method
 func (rt *router) AddFuncHandler(pattern, method string, handler HandlerFunc) (err error) {
-	if fHandler := strach.funcHandler(pattern); fHandler == nil {
+	if fHandler := tmp.funcHandler(pattern); fHandler == nil {
 		fHandler = newFuncHandler()
 		fHandler.setMethodHandler(method, handler)
 		if err = rt.AddHandler(pattern, fHandler); err == nil {
-			strach.setFuncHandler(pattern, fHandler)
+			tmp.setFuncHandler(pattern, fHandler)
 		}
 	} else {
 		fHandler.setMethodHandler(method, handler)
@@ -419,21 +425,6 @@ func (rt *router) MatchTaskHandler(url *url.URL) (TaskHandler, URLVarIndexer) {
 		}
 	}
 	return nil, nilVarIndexer
-}
-
-// MatchHandler match url to find final handler, last returned value will only
-// be nil, it appeared only for compate with MatchHandlerFilters
-func (rt *router) MatchHandler(url *url.URL) (Handler, URLVarIndexer, []Filter) {
-	path := url.Path
-	rt, values := rt.matchOne(path)
-	if rt != nil {
-		if processor := rt.processor; processor != nil {
-			if hp := processor.handlerProcessor; hp != nil {
-				return hp.handler, newVarIndexer(hp.vars, values), nil
-			}
-		}
-	}
-	return nil, nilVarIndexer, nil
 }
 
 // MatchHandlerFilters match url to fin final handler and each filters
