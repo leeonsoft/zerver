@@ -1,5 +1,9 @@
 package zerver_rest
 
+import (
+	"net/http"
+)
+
 type (
 	// HandlerFunc is the common request handler function type
 	HandlerFunc func(Request, Response)
@@ -88,10 +92,10 @@ func (fh *funcHandler) setMethodHandler(method string, handlerFunc HandlerFunc) 
 }
 
 // EmptyHandler methods
-func (EmptyHandler) Init(*Server) error       { return nil }
-func (EmptyHandler) Destroy()                 {}
-func (EmptyHandler) Get(Request, Response)    {}
-func (EmptyHandler) Post(Request, Response)   {}
-func (EmptyHandler) Delete(Request, Response) {}
-func (EmptyHandler) Put(Request, Response)    {}
-func (EmptyHandler) Patch(Request, Response)  {}
+func (EmptyHandler) Init(*Server) error              { return nil }
+func (EmptyHandler) Destroy()                        {}
+func (EmptyHandler) Get(_ Request, resp Response)    { resp.ReportStatus(http.StatusMethodNotAllowed) }
+func (EmptyHandler) Post(_ Request, resp Response)   { resp.ReportStatus(http.StatusMethodNotAllowed) }
+func (EmptyHandler) Delete(_ Request, resp Response) { resp.ReportStatus(http.StatusMethodNotAllowed) }
+func (EmptyHandler) Put(_ Request, resp Response)    { resp.ReportStatus(http.StatusMethodNotAllowed) }
+func (EmptyHandler) Patch(_ Request, resp Response)  { resp.ReportStatus(http.StatusMethodNotAllowed) }

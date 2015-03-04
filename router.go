@@ -28,14 +28,20 @@ type (
 		AddFuncWebSocketHandler(pattern string, handler WebSocketHandlerFunc) error
 		// AddWebSocketHandler add a websocket handler
 		AddWebSocketHandler(pattern string, handler WebSocketHandler) error
+		// AddFuncTaskHandler
+		AddFuncTaskHandler(pattern string, handler TaskHandlerFunc) error
+		// AddTaskHandler
+		AddTaskHandler(pattern string, handler TaskHandler) error
 
-		// // MatchHandler match given url to find  final handler, filters must be nil
-		// // it's just for signature compatible with MatchHandlerFilters
-		// MatchHandler(url *url.URL) (Handler, URLVarIndexer, []Filter)
+		// MatchHandler match given url to find  final handler, filters must be nil
+		// it's just for signature compatible with MatchHandlerFilters
+		MatchHandler(url *url.URL) (Handler, URLVarIndexer, []Filter)
 		// MatchHandlerFilters match given url to find all matched filters and final handler
 		MatchHandlerFilters(url *url.URL) (Handler, URLVarIndexer, []Filter)
 		// MatchWebSocketHandler match given url to find a matched websocket handler
 		MatchWebSocketHandler(url *url.URL) (WebSocketHandler, URLVarIndexer)
+		// MatchTaskHandler
+		MatchTaskHandler(url *url.URL) (TaskHandler, URLVarIndexer)
 	}
 
 	// URLVarIndexer is a indexer for name to value
@@ -59,11 +65,16 @@ type (
 		vars      map[string]int
 		wsHandler WebSocketHandler
 	}
+	taskHandlerProcessor struct {
+		vars        map[string]int
+		taskHandler TaskHandler
+	}
 	// routeProcessor is processor of a route, it can hold handler, filters, and websocket handler
 	routeProcessor struct {
-		wsHandlerProcessor *wsHandlerProcessor
-		handlerProcessor   *handlerProcessor
-		filters            []Filter
+		wsHandlerProcessor   *wsHandlerProcessor
+		handlerProcessor     *handlerProcessor
+		taskHandlerProcessor *taskHandlerProcessor
+		filters              []Filter
 	}
 
 	// router is a actual url router, it only process path of url, other section is
@@ -341,6 +352,22 @@ func (rt *router) AddWebSocketHandler(pattern string, handler WebSocketHandler) 
 	})
 }
 
+// AddFuncTaskHandler add funciton task handler to router for given pattern
+func (rt *router) AddFuncTaskHandler(pattern string, handler TaskHandlerFunc) error {
+	return rt.AddTaskHandler(pattern, handler)
+}
+
+// AddTaskHandler add task handler to router for given pattern
+func (rt *router) AddTaskHandler(pattern string, handler TaskHandler) error {
+	return rt.addPattern(pattern, func(rp *routeProcessor, pathVars map[string]int) error {
+		if rp.taskHandlerProcessor != nil {
+			return Err("task handler already exist")
+		}
+		rp.taskHandlerProcessor = &taskHandlerProcessor{vars: pathVars, taskHandler: handler}
+		return nil
+	})
+}
+
 // AddFuncFilter add function filter to router
 func (rt *router) AddFuncFilter(pattern string, filter FilterFunc) error {
 	return rt.AddFilter(pattern, filter)
@@ -380,20 +407,34 @@ func (rt *router) MatchWebSocketHandler(url *url.URL) (WebSocketHandler, URLVarI
 	return nil, nilVarIndexer
 }
 
-// // MatchHandler match url to find final handler, last returned value will only
-// // be nil, it appeared only for compate with MatchHandlerFilters
-// func (rt *router) MatchHandler(url *url.URL) (Handler, URLVarIndexer, []Filter) {
-// 	path := url.Path
-// 	rt, values := rt.matchOne(path)
-// 	if rt != nil {
-// 		if processor := rt.processor; processor != nil {
-// 			if hp := processor.handlerProcessor; hp != nil {
-// 				return hp.handler, newVarIndexer(hp.vars, values), nil
-// 			}
-// 		}
-// 	}
-// 	return nil, nilVarIndexer, nil
-// }
+// MatchTaskhandler match url to find final websocket handler
+func (rt *router) MatchTaskHandler(url *url.URL) (TaskHandler, URLVarIndexer) {
+	path := url.Path
+	rt, values := rt.matchOne(path)
+	if rt != nil {
+		if processor := rt.processor; processor != nil {
+			if tsp := processor.taskHandlerProcessor; tsp != nil {
+				return tsp.taskHandler, newVarIndexer(tsp.vars, values)
+			}
+		}
+	}
+	return nil, nilVarIndexer
+}
+
+// MatchHandler match url to find final handler, last returned value will only
+// be nil, it appeared only for compate with MatchHandlerFilters
+func (rt *router) MatchHandler(url *url.URL) (Handler, URLVarIndexer, []Filter) {
+	path := url.Path
+	rt, values := rt.matchOne(path)
+	if rt != nil {
+		if processor := rt.processor; processor != nil {
+			if hp := processor.handlerProcessor; hp != nil {
+				return hp.handler, newVarIndexer(hp.vars, values), nil
+			}
+		}
+	}
+	return nil, nilVarIndexer, nil
+}
 
 // MatchHandlerFilters match url to fin final handler and each filters
 func (rt *router) MatchHandlerFilters(url *url.URL) (handler Handler,

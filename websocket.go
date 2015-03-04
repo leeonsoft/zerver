@@ -34,11 +34,6 @@ type (
 	}
 )
 
-// WebSocketHandlerFunc is a function WebSocketHandler
-func (WebSocketHandlerFunc) Init(*Server) error           { return nil }
-func (fn WebSocketHandlerFunc) Handle(conn WebSocketConn) { fn(conn) }
-func (WebSocketHandlerFunc) Destroy()                     {}
-
 // newWebSocketConn wrap a exist websocket connection and url variables to a
 // new webSocketConn
 func newWebSocketConn(conn *websocket.Conn, varIndexer URLVarIndexer) *webSocketConn {
@@ -52,3 +47,8 @@ func newWebSocketConn(conn *websocket.Conn, varIndexer URLVarIndexer) *webSocket
 func (wsc *webSocketConn) URL() *url.URL {
 	return wsc.Config().Origin
 }
+
+// WebSocketHandlerFunc is a function WebSocketHandler
+func (WebSocketHandlerFunc) Init(*Server) error           { return nil }
+func (fn WebSocketHandlerFunc) Handle(conn WebSocketConn) { fn(conn) }
+func (WebSocketHandlerFunc) Destroy()                     {}

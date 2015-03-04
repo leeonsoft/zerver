@@ -3,6 +3,7 @@ package zerver_rest
 import (
 	"log"
 	"net/http"
+	"net/url"
 
 	websocket "github.com/cosiner/zerver_websocket"
 
@@ -59,7 +60,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, request *http.Request) {
 	if websocket.IsWebSocketRequest(request) {
 		s.serveWebSocket(w, request)
 	} else {
-		s.serveHttp(w, request)
+		s.serveHTTP(w, request)
 	}
 }
 
@@ -73,9 +74,11 @@ func (s *Server) serveWebSocket(w http.ResponseWriter, request *http.Request) {
 	}
 }
 
-// serveHttp serve for http protocal
-func (s *Server) serveHttp(w http.ResponseWriter, request *http.Request) {
-	handler, indexer, filters := s.MatchHandlerFilters(request.URL)
+// serveHTTP serve for http protocal
+func (s *Server) serveHTTP(w http.ResponseWriter, request *http.Request) {
+	url := request.URL
+	url.Host = request.Host
+	handler, indexer, filters := s.MatchHandlerFilters(url)
 	req, resp := newRequest(request, indexer), newResponse(w)
 	if handler != nil {
 		if handlerFunc := IndicateHandler(req.Method(), handler); handlerFunc == nil {
@@ -113,4 +116,26 @@ func (s *Server) Delete(pattern string, handlerFunc HandlerFunc) {
 // Patch register a function handler process PATCH request for given pattern
 func (s *Server) Patch(pattern string, handlerFunc HandlerFunc) {
 	s.AddFuncHandler(pattern, PATCH, handlerFunc)
+}
+
+func (s *Server) addTask(path string, req Request) {
+	u, err := url.Parse(path)
+	if err != nil {
+		s.PanicServer(err.Error())
+	}
+	handler, indexer := s.MatchTaskHandler(u)
+	if handler == nil {
+		s.PanicServer("No task handler found for " + path)
+	}
+	req.setURL(u)
+	req.setURLVarIndexer(indexer)
+	handler.Handle(req)
+}
+
+func (s *Server) AddTask(path string, req Request) {
+	go s.addTask(path, req)
+}
+
+func (*Server) PanicServer(s string) {
+	go panic(s)
 }

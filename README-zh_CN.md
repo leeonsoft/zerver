@@ -1,18 +1,16 @@
-[简体中文](README-zh_CN.md)
+[English](README.md)
 
 #### Zerver-REST
-__Zerver-REST__ is a high-performance, simple, restful api framework for [golang](http://golang.org)
+__Zerver-REST__ 是一个[golang](http://golang.org)实现的高性能, 简单 RESTFul-api框架 
 
-It's a simplified version of [Zever](http://github.com/cosiner/zever), remove template, session, and some other components to get a more clear architecture.
+这是一个[Zerver](http://github.com/cosiner/zerver)的简化版本, 去除了模板, session等功能, 专注与RESTFul风格的api输出, 架构更加简洁明了.
 
-It's mainly designed for restful api service, but you can also use it as a web framework.
+[文档](godoc.org/github.com/cosiner/zerver_rest)
 
-Documentation can be found at [godoc.org/github.com/cosiner/zerver_rest]
-
-#### Install
+#### 安装
 `go get github.com/cosiner/zever_rest`
 
-#### Getting Started
+#### 起步
 ```Go
 package main
 
@@ -28,15 +26,15 @@ func main() {
 ```
 
 -------------------------------------------------------------------------------
-#### Features
-* RESTFul Route
-* Tree-based mux/router
-* Filter Chain supported
-* Builtin WebSocket supported
+#### 特性
+* RESTFul风格的路由设计
+* 基于前缀树的路由匹配, 放弃正则表达式
+* 支持过滤器链
+* 内置WebSocket支持
 
 -------------------------------------------------------------------------------
-#### Note
-The core of Zerver-REST only define some specifications, it's only a router, and only support output bytes, multiple output format like json/xml/gob should use third party libraries.
+#### 注意
+Zerver-REST仅定义了一个编程框架, 核心只有一个路由分发器, 任何其他功能比如session, 模板, 多种输出格式都被移除了, 如果确实需要, 可以尝试[Zerver](http://github.com/cosiner/zerver), 而且并不与golang标准库兼容
 
 ##### Router
 Zerver-REST's Router is based on prefix-tree, it's transparent to user.

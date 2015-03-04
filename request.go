@@ -26,6 +26,8 @@ type (
 		Server() *Server
 		io.Reader
 		URLVarIndexer
+		setURLVarIndexer(indexer URLVarIndexer)
+		setURL(url *url.URL)
 	}
 
 	// request represent an income request
@@ -53,6 +55,14 @@ func newRequest(requ *http.Request, varIndexer URLVarIndexer) Request {
 	}
 	req.method = strings.ToUpper(method)
 	return req
+}
+
+func (req *request) setURLVarIndexer(indexer URLVarIndexer) {
+	req.URLVarIndexer = indexer
+}
+
+func (req *request) setURL(url *url.URL) {
+	req.request.URL = url
 }
 
 func (req *request) Read(data []byte) (int, error) {
