@@ -50,6 +50,7 @@ type (
 		ScanURLVars(vars ...*string)
 		// URLVars return all values of variable
 		URLVars() []string
+		destroy()
 	}
 
 	// handlerProcessor keep handler and url variables of this route
@@ -57,15 +58,18 @@ type (
 		vars    map[string]int
 		handler Handler
 	}
+
 	// wsHandlerProcessor keep websocket handler and url variables of this route
 	wsHandlerProcessor struct {
 		vars      map[string]int
 		wsHandler WebSocketHandler
 	}
+
 	taskHandlerProcessor struct {
 		vars        map[string]int
 		taskHandler TaskHandler
 	}
+
 	// routeProcessor is processor of a route, it can hold handler, filters, and websocket handler
 	routeProcessor struct {
 		wsHandlerProcessor   *wsHandlerProcessor
@@ -83,8 +87,8 @@ type (
 		processor *routeProcessor // processor for current route node
 	}
 
-	// pathVars is an implementation of URLVarIndexer
-	pathVars struct {
+	// urlVarIndexer is an implementation of URLVarIndexer
+	urlVarIndexer struct {
 		vars   map[string]int // url variables and indexs of sections splited by '/'
 		values []string       // all url variable values
 	}
@@ -93,8 +97,8 @@ type (
 var (
 	// nilVars is empty variable map
 	nilVars = make(map[string]int)
-	// nilVarIndexer is a empty URLVarIndexer
-	nilVarIndexer = &pathVars{vars: nilVars, values: nil}
+	// nilIndexer is a empty URLVarIndexer
+	nilIndexer = &urlVarIndexer{vars: nilVars, values: nil}
 	// reserveChildsCount is route childs slice increment and init size for addPath
 	reserveChildsCount = 1
 	// PathVarCount is common url path variable count
@@ -102,6 +106,7 @@ var (
 	// all path variable values
 	// to get best performance, it should commonly set to the average, default, it's 2
 	PathVarCount = 2
+	FilterCount  = 0
 )
 
 const (
@@ -190,20 +195,29 @@ ERROR:
 			path, _WILDCARD, _REMAINSALL)
 }
 
-// newVarIndexer create a new VarIndexer with variable map and values
+// newURLVarIndexer create a new URLVarIndexer with variable map and values
 // if variables is empty then use default empty var indexer
-func newVarIndexer(vars map[string]int, values []string) URLVarIndexer {
+func newURLVarIndexer(vars map[string]int, values []string) *urlVarIndexer {
 	if len(vars) == 0 {
-		return nilVarIndexer
+		return nilIndexer
 	}
-	v := new(pathVars)
-	v.vars = vars
-	v.values = values
-	return v
+	indexer := pool.newVarIndexer()
+	indexer.vars = vars
+	indexer.values = values
+	return indexer
+}
+
+func (v *urlVarIndexer) destroy() {
+	if v != nilIndexer {
+		pool.recycleVarIndexer(v)
+		pool.recycleVars(v.values)
+		v.vars = nil
+		v.values = nil
+	}
 }
 
 // URLVar return values of variable
-func (v *pathVars) URLVar(name string) string {
+func (v *urlVarIndexer) URLVar(name string) string {
 	if index, has := v.vars[name]; has {
 		return v.values[index]
 	}
@@ -211,13 +225,13 @@ func (v *pathVars) URLVar(name string) string {
 }
 
 // URLVars return all values of variable
-func (v *pathVars) URLVars() []string {
+func (v *urlVarIndexer) URLVars() []string {
 	return v.values
 }
 
 // ScanURLVars scan values into variable addresses
 // if address is nil, skip it
-func (v *pathVars) ScanURLVars(vars ...*string) {
+func (v *urlVarIndexer) ScanURLVars(vars ...*string) {
 	values := v.values
 	l1, l2 := len(values), len(vars)
 	for i := 0; i < l1 && i < l2; i++ {
@@ -402,29 +416,29 @@ func (rt *router) addPattern(pattern string, fn func(*routeProcessor, map[string
 // MatchWebSockethandler match url to find final websocket handler
 func (rt *router) MatchWebSocketHandler(url *url.URL) (WebSocketHandler, URLVarIndexer) {
 	path := url.Path
-	rt, values := rt.matchOne(path)
+	rt, values := rt.matchOne(path, pool.newVars())
 	if rt != nil {
 		if processor := rt.processor; processor != nil {
 			if wsp := processor.wsHandlerProcessor; wsp != nil {
-				return wsp.wsHandler, newVarIndexer(wsp.vars, values)
+				return wsp.wsHandler, newURLVarIndexer(wsp.vars, values)
 			}
 		}
 	}
-	return nil, nilVarIndexer
+	return nil, nilIndexer
 }
 
 // MatchTaskhandler match url to find final websocket handler
 func (rt *router) MatchTaskHandler(url *url.URL) (TaskHandler, URLVarIndexer) {
 	path := url.Path
-	rt, values := rt.matchOne(path)
+	rt, values := rt.matchOne(path, pool.newVars())
 	if rt != nil {
 		if processor := rt.processor; processor != nil {
 			if tsp := processor.taskHandlerProcessor; tsp != nil {
-				return tsp.taskHandler, newVarIndexer(tsp.vars, values)
+				return tsp.taskHandler, newURLVarIndexer(tsp.vars, values)
 			}
 		}
 	}
-	return nil, nilVarIndexer
+	return nil, nilIndexer
 }
 
 // MatchHandlerFilters match url to fin final handler and each filters
@@ -432,26 +446,31 @@ func (rt *router) MatchHandlerFilters(url *url.URL) (handler Handler,
 	indexer URLVarIndexer, filters []Filter) {
 	var (
 		pathIndex int
-		values    []string
+		values    = pool.newVars()
 		continu   = true
 		path      = url.Path
 		processor *routeProcessor
 	)
+	if FilterCount != 0 {
+		filters = make([]Filter, 0, FilterCount)
+	}
 	for continu {
 		if processor = rt.processor; processor != nil {
-			filters = append(filters, processor.filters...)
+			if pfs := processor.filters; len(pfs) != 0 {
+				filters = append(filters, pfs...)
+			}
 		}
 		pathIndex, values, rt, continu = rt.matchMulti(path, pathIndex, values)
 	}
 	if rt != nil {
 		if processor = rt.processor; processor != nil {
 			if hp := processor.handlerProcessor; hp != nil {
-				handler, indexer = hp.handler, newVarIndexer(hp.vars, values)
+				handler, indexer = hp.handler, newURLVarIndexer(hp.vars, values)
 				return
 			}
 		}
 	}
-	indexer = nilVarIndexer
+	indexer = nilIndexer
 	return
 }
 
@@ -589,13 +608,12 @@ func (rt *router) matchMulti(path string, pathIndex int, values []string) (int,
 }
 
 // matchOne match one longest route node and return values of path variable
-func (rt *router) matchOne(path string) (*router, []string) {
+func (rt *router) matchOne(path string, values []string) (*router, []string) {
 	var (
 		str                string
 		strIndex, strLen   int
-		pathIndex, pathLen          = 0, len(path)
-		node                        = rt
-		values             []string = nil
+		pathIndex, pathLen = 0, len(path)
+		node               = rt
 	)
 	for node != nil {
 		// skip first character, if it's root node, first char '/' can be safety skipped
@@ -617,14 +635,8 @@ func (rt *router) matchOne(path string) (*router, []string) {
 					for pathIndex < pathLen && path[pathIndex] != '/' {
 						pathIndex++
 					}
-					if values == nil {
-						values = make([]string, 0, PathVarCount)
-					}
 					values = append(values, path[start:pathIndex])
 				case _REMAINSALL: // parse end, full matched
-					if values == nil {
-						values = make([]string, 0, PathVarCount)
-					}
 					values = append(values, path[pathIndex:pathLen])
 					pathIndex = pathLen
 					strIndex = strLen

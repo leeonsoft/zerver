@@ -22,6 +22,7 @@ type (
 		ReportStatus(statusCode int)
 		Hijack() (net.Conn, *bufio.ReadWriter, error)
 		Flush()
+		destroy()
 		io.Writer
 	}
 
@@ -30,18 +31,20 @@ type (
 		http.ResponseWriter
 		header http.Header
 	}
-
-	// marshalFunc is the marshal function type
-	marshalFunc func(interface{}) ([]byte, error)
 )
 
 // newResponse create a new response, and set default content type to HTML
 func newResponse(w http.ResponseWriter) Response {
-	resp := &response{
-		ResponseWriter: w,
-		header:         w.Header(),
-	}
+	resp := pool.newResponse()
+	resp.ResponseWriter = w
+	resp.header = w.Header()
 	return resp
+}
+
+func (resp *response) destroy() {
+	pool.recycleResponse(resp)
+	resp.ResponseWriter = nil
+	resp.header = nil
 }
 
 // SetHeader setup response header

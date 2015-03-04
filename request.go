@@ -5,8 +5,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-
-	"github.com/cosiner/golib/encoding"
 )
 
 type (
@@ -31,7 +29,6 @@ type (
 	// request represent an income request
 	request struct {
 		URLVarIndexer
-		encoding.PowerReader
 		server  *Server
 		request *http.Request
 		method  string
@@ -42,17 +39,26 @@ type (
 
 // newRequest create a new request
 func newRequest(requ *http.Request, varIndexer URLVarIndexer) Request {
-	req := &request{
-		request:       requ,
-		header:        requ.Header,
-		URLVarIndexer: varIndexer,
-	}
+	req := pool.newRequest()
+	req.request = requ
+	req.header = requ.Header
+	req.URLVarIndexer = varIndexer
 	method := requ.Method
 	if m := requ.Header.Get("X-HTTP-Method-Override"); method == POST && m != "" {
 		method = m
 	}
 	req.method = strings.ToUpper(method)
 	return req
+}
+
+func (req *request) destroy() {
+	req.URLVarIndexer.destroy()
+	pool.recycleRequest(req)
+	req.request = nil
+	req.server = nil
+	req.header = nil
+	req.URLVarIndexer = nil
+	req.params = nil
 }
 
 func (req *request) Read(data []byte) (int, error) {

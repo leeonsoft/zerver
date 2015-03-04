@@ -106,6 +106,8 @@ func (s *Server) serveHTTP(w http.ResponseWriter, request *http.Request) {
 	} else { // no handler means no resource there
 		resp.ReportStatus(http.StatusNotFound)
 	}
+	req.destroy()
+	resp.destroy()
 }
 
 // serveTask serve for asynchronous task

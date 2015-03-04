@@ -6,7 +6,7 @@ type _tmp struct {
 	_funcHandlers map[string]*funcHandler // function handlers
 }
 
-var tmp = &_strach{
+var tmp = &_tmp{
 	_funcHandlers: make(map[string]*funcHandler),
 }
 
