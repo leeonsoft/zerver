@@ -94,6 +94,8 @@ func (s *Server) serveWebSocket(w http.ResponseWriter, request *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	} else if conn, err := websocket.UpgradeWebsocket(w, request, nil); err == nil {
 		handler.Handle(newWebSocketConn(s, conn, indexer))
+		indexer.destroy()
+		Pool.recycleVarIndexer(indexer)
 	}
 }
 
@@ -102,7 +104,8 @@ func (s *Server) serveHTTP(w http.ResponseWriter, request *http.Request) {
 	url := request.URL
 	url.Host = request.Host
 	handler, indexer, filters := s.MatchHandlerFilters(url)
-	req, resp := newRequest(s, request, indexer), newResponse(w)
+	requestEnv := Pool.newRequestEnv()
+	req, resp := requestEnv.req.init(s, request, indexer), requestEnv.resp.init(w)
 	if handler != nil {
 		if handlerFunc := IndicateHandler(req.Method(), handler); handlerFunc == nil {
 			resp.ReportStatus(http.StatusMethodNotAllowed)
@@ -116,6 +119,10 @@ func (s *Server) serveHTTP(w http.ResponseWriter, request *http.Request) {
 	}
 	req.destroy()
 	resp.destroy()
+	indexer.destroy()
+	Pool.recycleRequestEnv(requestEnv)
+	Pool.recycleVarIndexer(indexer)
+	Pool.recycleFilters(filters)
 }
 
 // serveTask serve for asynchronous task
@@ -129,6 +136,8 @@ func (s *Server) serveTask(path string, value interface{}) {
 		s.PanicServer("No task handler found for " + path)
 	}
 	handler.Handle(newTask(s, indexer, value))
+	indexer.destroy()
+	Pool.recycleVarIndexer(indexer)
 }
 
 // Get register a function handler process GET request for given pattern

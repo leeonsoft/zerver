@@ -34,15 +34,13 @@ type (
 )
 
 // newResponse create a new response, and set default content type to HTML
-func newResponse(w http.ResponseWriter) Response {
-	resp := pool.newResponse()
+func (resp *response) init(w http.ResponseWriter) Response {
 	resp.ResponseWriter = w
 	resp.header = w.Header()
 	return resp
 }
 
 func (resp *response) destroy() {
-	pool.recycleResponse(resp)
 	resp.ResponseWriter = nil
 	resp.header = nil
 }

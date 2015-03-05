@@ -6,33 +6,32 @@ import (
 	"sync"
 )
 
+type requestEnv struct {
+	req  *request
+	resp *response
+}
+
 type ServerPool struct {
-	requestPool    *sync.Pool
-	responsePool   *sync.Pool
+	requestEnvPool *sync.Pool
 	varIndexerPool *sync.Pool
-	varsPool       *sync.Pool
+	filtersPool    *sync.Pool
 	otherPools     map[string]*sync.Pool
 }
 
 var Pool *ServerPool = &ServerPool{
-	requestPool: &sync.Pool{
+	requestEnvPool: &sync.Pool{
 		New: func() interface{} {
-			return new(request)
-		},
-	},
-	responsePool: &sync.Pool{
-		New: func() interface{} {
-			return new(response)
+			return &requestEnv{new(request), new(response)}
 		},
 	},
 	varIndexerPool: &sync.Pool{
 		New: func() interface{} {
-			return new(urlVarIndexer)
+			return &urlVarIndexer{values: make([]string, 0, PathVarCount)}
 		},
 	},
-	varsPool: &sync.Pool{
+	filtersPool: &sync.Pool{
 		New: func() interface{} {
-			return make([]string, 0, PathVarCount)
+			return make([]Filter, 0, FilterCount)
 		},
 	},
 	otherPools: make(map[string]*sync.Pool),
@@ -44,42 +43,36 @@ func (pool *ServerPool) ReigisterPool(name string, newFunc func() interface{}) e
 		return Err("Pool for " + name + " already exist")
 	}
 	op[name] = &sync.Pool{New: newFunc}
+	return nil
 }
 
 func (pool *ServerPool) NewFrom(name string) interface{} {
 	return pool.otherPools[name].Get()
 }
 
-func (pool *ServerPool) newRequest() *request {
-	return pool.requestPool.Get().(*request)
-}
-
-func (pool *ServerPool) newResponse() *response {
-	return pool.responsePool.Get().(*response)
+func (pool *ServerPool) newRequestEnv() *requestEnv {
+	return pool.requestEnvPool.Get().(*requestEnv)
 }
 
 func (pool *ServerPool) newVarIndexer() *urlVarIndexer {
 	return pool.varIndexerPool.Get().(*urlVarIndexer)
 }
 
-func (pool *ServerPool) newVars() []string {
-	return pool.varsPool.Get().([]string)
+func (pool *ServerPool) newFilters() []Filter {
+	return pool.filtersPool.Get().([]Filter)
 }
 
-func (pool *ServerPool) recycleRequest(req *request) {
-	pool.requestPool.Put(req)
+func (pool *ServerPool) recycleRequestEnv(req *requestEnv) {
+	pool.requestEnvPool.Put(req)
 }
 
-func (pool *ServerPool) recycleResponse(resp *response) {
-	pool.responsePool.Put(resp)
-}
-
-func (pool *ServerPool) recycleVarIndexer(indexer *urlVarIndexer) {
+func (pool *ServerPool) recycleVarIndexer(indexer URLVarIndexer) {
 	pool.varIndexerPool.Put(indexer)
 }
 
-func (pool *ServerPool) recycleVars(vars []string) {
-	pool.varsPool.Put(vars[:0])
+func (pool *ServerPool) recycleFilters(filters []Filter) {
+	filters = filters[:0]
+	pool.filtersPool.Put(filters)
 }
 
 func (pool *ServerPool) RecycleTo(name string, value interface{}) {

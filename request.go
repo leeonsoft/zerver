@@ -38,8 +38,7 @@ type (
 )
 
 // newRequest create a new request
-func newRequest(s serverGetter, requ *http.Request, varIndexer URLVarIndexer) Request {
-	req := pool.newRequest()
+func (req *request) init(s serverGetter, requ *http.Request, varIndexer URLVarIndexer) Request {
 	req.serverGetter = s
 	req.request = requ
 	req.header = requ.Header
@@ -55,8 +54,6 @@ func newRequest(s serverGetter, requ *http.Request, varIndexer URLVarIndexer) Re
 }
 
 func (req *request) destroy() {
-	req.URLVarIndexer.destroy()
-	pool.recycleRequest(req)
 	req.request = nil
 	req.serverGetter = nil
 	req.header = nil

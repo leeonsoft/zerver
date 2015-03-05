@@ -97,8 +97,6 @@ type (
 var (
 	// nilVars is empty variable map
 	nilVars = make(map[string]int)
-	// nilIndexer is a empty URLVarIndexer
-	nilIndexer = &urlVarIndexer{vars: nilVars, values: nil}
 	// reserveChildsCount is route childs slice increment and init size for addPath
 	reserveChildsCount = 1
 	// PathVarCount is common url path variable count
@@ -195,25 +193,9 @@ ERROR:
 			path, _WILDCARD, _REMAINSALL)
 }
 
-// newURLVarIndexer create a new URLVarIndexer with variable map and values
-// if variables is empty then use default empty var indexer
-func newURLVarIndexer(vars map[string]int, values []string) *urlVarIndexer {
-	if len(vars) == 0 {
-		return nilIndexer
-	}
-	indexer := pool.newVarIndexer()
-	indexer.vars = vars
-	indexer.values = values
-	return indexer
-}
-
 func (v *urlVarIndexer) destroy() {
-	if v != nilIndexer {
-		pool.recycleVarIndexer(v)
-		pool.recycleVars(v.values)
-		v.vars = nil
-		v.values = nil
-	}
+	v.values = v.values[:0]
+	v.vars = nil
 }
 
 // URLVar return values of variable
@@ -351,7 +333,10 @@ func (rt *router) AddHandler(pattern string, handler Handler) error {
 		if rp.handlerProcessor != nil {
 			return Errorf("handler already exist")
 		}
-		rp.handlerProcessor = &handlerProcessor{vars: pathVars, handler: handler}
+		rp.handlerProcessor = &handlerProcessor{
+			vars:    pathVars,
+			handler: handler,
+		}
 		return nil
 	})
 }
@@ -367,7 +352,10 @@ func (rt *router) AddWebSocketHandler(pattern string, handler WebSocketHandler) 
 		if rp.wsHandlerProcessor != nil {
 			return Err("websocket handler already exist")
 		}
-		rp.wsHandlerProcessor = &wsHandlerProcessor{vars: pathVars, wsHandler: handler}
+		rp.wsHandlerProcessor = &wsHandlerProcessor{
+			vars:      pathVars,
+			wsHandler: handler,
+		}
 		return nil
 	})
 }
@@ -383,7 +371,10 @@ func (rt *router) AddTaskHandler(pattern string, handler TaskHandler) error {
 		if rp.taskHandlerProcessor != nil {
 			return Err("task handler already exist")
 		}
-		rp.taskHandlerProcessor = &taskHandlerProcessor{vars: pathVars, taskHandler: handler}
+		rp.taskHandlerProcessor = &taskHandlerProcessor{
+			vars:        pathVars,
+			taskHandler: handler,
+		}
 		return nil
 	})
 }
@@ -414,46 +405,50 @@ func (rt *router) addPattern(pattern string, fn func(*routeProcessor, map[string
 }
 
 // MatchWebSockethandler match url to find final websocket handler
-func (rt *router) MatchWebSocketHandler(url *url.URL) (WebSocketHandler, URLVarIndexer) {
-	path := url.Path
-	rt, values := rt.matchOne(path, pool.newVars())
-	if rt != nil {
-		if processor := rt.processor; processor != nil {
-			if wsp := processor.wsHandlerProcessor; wsp != nil {
-				return wsp.wsHandler, newURLVarIndexer(wsp.vars, values)
-			}
+func (rt *router) MatchWebSocketHandler(url *url.URL) (handler WebSocketHandler, indexer URLVarIndexer) {
+	indexer = rt.matchHandler(url, func(indexer *urlVarIndexer, p *routeProcessor) {
+		if wsp := p.wsHandlerProcessor; wsp != nil {
+			indexer.vars = wsp.vars
+			handler = wsp.wsHandler
 		}
-	}
-	return nil, nilIndexer
+	})
+	return
 }
 
 // MatchTaskhandler match url to find final websocket handler
-func (rt *router) MatchTaskHandler(url *url.URL) (TaskHandler, URLVarIndexer) {
-	path := url.Path
-	rt, values := rt.matchOne(path, pool.newVars())
-	if rt != nil {
-		if processor := rt.processor; processor != nil {
-			if tsp := processor.taskHandlerProcessor; tsp != nil {
-				return tsp.taskHandler, newURLVarIndexer(tsp.vars, values)
-			}
+func (rt *router) MatchTaskHandler(url *url.URL) (handler TaskHandler, indexer URLVarIndexer) {
+	indexer = rt.matchHandler(url, func(indexer *urlVarIndexer, p *routeProcessor) {
+		if tsp := p.taskHandlerProcessor; tsp != nil {
+			indexer.vars = tsp.vars
+			handler = tsp.taskHandler
 		}
+	})
+	return
+}
+
+func (rt *router) matchHandler(url *url.URL, fn func(*urlVarIndexer, *routeProcessor)) URLVarIndexer {
+	path := url.Path
+	indexer := Pool.newVarIndexer()
+	rt, values := rt.matchOne(path, indexer.values)
+	indexer.values = values
+	if rt != nil && rt.processor != nil {
+		fn(indexer, rt.processor)
 	}
-	return nil, nilIndexer
+	return indexer
 }
 
 // MatchHandlerFilters match url to fin final handler and each filters
-func (rt *router) MatchHandlerFilters(url *url.URL) (handler Handler,
-	indexer URLVarIndexer, filters []Filter) {
+func (rt *router) MatchHandlerFilters(url *url.URL) (Handler,
+	URLVarIndexer, []Filter) {
 	var (
 		pathIndex int
-		values    = pool.newVars()
 		continu   = true
 		path      = url.Path
 		processor *routeProcessor
+		indexer            = Pool.newVarIndexer()
+		values             = indexer.values
+		filters   []Filter = Pool.newFilters()
 	)
-	if FilterCount != 0 {
-		filters = make([]Filter, 0, FilterCount)
-	}
 	for continu {
 		if processor = rt.processor; processor != nil {
 			if pfs := processor.filters; len(pfs) != 0 {
@@ -462,16 +457,16 @@ func (rt *router) MatchHandlerFilters(url *url.URL) (handler Handler,
 		}
 		pathIndex, values, rt, continu = rt.matchMultiple(path, pathIndex, values)
 	}
+	indexer.values = values
 	if rt != nil {
 		if processor = rt.processor; processor != nil {
 			if hp := processor.handlerProcessor; hp != nil {
-				handler, indexer = hp.handler, newURLVarIndexer(hp.vars, values)
-				return
+				indexer.vars = hp.vars
+				return hp.handler, indexer, filters
 			}
 		}
 	}
-	indexer = nilIndexer
-	return
+	return nil, indexer, filters
 }
 
 // addPath add an new path to route, use given function to operate the final
