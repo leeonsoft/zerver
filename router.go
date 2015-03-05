@@ -9,7 +9,6 @@ import (
 )
 
 type (
-	// Router is responsible for route manage and match
 	Router interface {
 		// Init init handlers and filters, websocket handlers
 		Init(func(Handler) bool, func(Filter) bool, func(WebSocketHandler) bool, func(TaskHandler) bool)
