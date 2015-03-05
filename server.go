@@ -15,12 +15,15 @@ type (
 	Server struct {
 		Router
 		AttrContainer
+		handlerMatcher func(*url.URL) (Handler, URLVarIndexer, []Filter)
 	}
 
 	serverGetter interface {
 		Server() *Server
 	}
 )
+
+var disableFilter bool
 
 // NewServer create a new server
 func NewServer() *Server {
@@ -38,6 +41,11 @@ func (s *Server) Server() *Server {
 
 // Start start server
 func (s *Server) start() {
+	if disableFilter {
+		s.handlerMatcher = s.matchHandlerNoFilters
+	} else {
+		s.handlerMatcher = s.MatchHandlerFilters
+	}
 	log.Println("Init Handlers and Filters")
 	s.Router.Init(func(handler Handler) bool {
 		OnErrPanic(handler.Init(s))
@@ -78,13 +86,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, request *http.Request) {
 }
 
 // StartTask add a synchronous task
-func (s *Server) StartTask(path string, value interface{}) {
-	s.serveTask(path, value)
-}
-
-// StartAsyncTask add a asynchronous task
-func (s *Server) StartAsyncTask(path string, value interface{}) {
-	go s.serveTask(path, value)
+func (s *Server) StartTask(async bool, path string, value interface{}) {
+	if async {
+		go s.serveTask(path, value)
+	} else {
+		s.serveTask(path, value)
+	}
 }
 
 // serveWebSocket serve for websocket protocal
@@ -99,11 +106,16 @@ func (s *Server) serveWebSocket(w http.ResponseWriter, request *http.Request) {
 	}
 }
 
+func (s *Server) matchHandlerNoFilters(url *url.URL) (Handler, URLVarIndexer, []Filter) {
+	handler, indexer := s.MatchHandler(url)
+	return handler, indexer, nil
+}
+
 // serveHTTP serve for http protocal
 func (s *Server) serveHTTP(w http.ResponseWriter, request *http.Request) {
 	url := request.URL
 	url.Host = request.Host
-	handler, indexer, filters := s.MatchHandlerFilters(url)
+	handler, indexer, filters := s.handlerMatcher(url)
 	requestEnv := Pool.newRequestEnv()
 	req, resp := requestEnv.req.init(s, request, indexer), requestEnv.resp.init(w)
 	if handler != nil {

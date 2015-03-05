@@ -71,8 +71,10 @@ func (pool *ServerPool) recycleVarIndexer(indexer URLVarIndexer) {
 }
 
 func (pool *ServerPool) recycleFilters(filters []Filter) {
-	filters = filters[:0]
-	pool.filtersPool.Put(filters)
+	if filters != nil {
+		filters = filters[:0]
+		pool.filtersPool.Put(filters)
+	}
 }
 
 func (pool *ServerPool) RecycleTo(name string, value interface{}) {

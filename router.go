@@ -35,6 +35,8 @@ type (
 
 		// MatchHandlerFilters match given url to find all matched filters and final handler
 		MatchHandlerFilters(url *url.URL) (Handler, URLVarIndexer, []Filter)
+		// MatchHandler match given url to find all matched filters and final handler
+		MatchHandler(url *url.URL) (Handler, URLVarIndexer)
 		// MatchWebSocketHandler match given url to find a matched websocket handler
 		MatchWebSocketHandler(url *url.URL) (WebSocketHandler, URLVarIndexer)
 		// MatchTaskHandler
@@ -385,6 +387,7 @@ func (rt *router) AddFuncFilter(pattern string, filter FilterFunc) error {
 
 // AddFuncFilter add filter to router
 func (rt *router) AddFilter(pattern string, filter Filter) error {
+	disableFilter = false
 	return rt.addPattern(pattern, func(rp *routeProcessor, _ map[string]int) error {
 		rp.filters = append(rp.filters, filter)
 		return nil
@@ -417,9 +420,20 @@ func (rt *router) MatchWebSocketHandler(url *url.URL) (handler WebSocketHandler,
 // MatchTaskhandler match url to find final websocket handler
 func (rt *router) MatchTaskHandler(url *url.URL) (handler TaskHandler, indexer URLVarIndexer) {
 	indexer = rt.matchHandler(url, func(indexer *urlVarIndexer, p *routeProcessor) {
-		if tsp := p.taskHandlerProcessor; tsp != nil {
-			indexer.vars = tsp.vars
-			handler = tsp.taskHandler
+		if thp := p.taskHandlerProcessor; thp != nil {
+			indexer.vars = thp.vars
+			handler = thp.taskHandler
+		}
+	})
+	return
+}
+
+// MatchHandler match url to find final websocket handler
+func (rt *router) MatchHandler(url *url.URL) (handler Handler, indexer URLVarIndexer) {
+	indexer = rt.matchHandler(url, func(indexer *urlVarIndexer, p *routeProcessor) {
+		if hp := p.handlerProcessor; hp != nil {
+			indexer.vars = hp.vars
+			handler = hp.handler
 		}
 	})
 	return
