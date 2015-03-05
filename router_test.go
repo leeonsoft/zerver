@@ -3,6 +3,8 @@ package zerver_rest
 import (
 	"testing"
 
+	. "github.com/cosiner/golib/errors"
+
 	"github.com/cosiner/golib/test"
 )
 
@@ -301,9 +303,20 @@ func BenchmarkMatchRouteNode(b *testing.B) {
 		// for continu {
 		// 	pathIndex, vars, n, continu = n.matchMulti(path, pathIndex, vars)
 		// }
-		n, _ := r.matchOne(path)
+		n, _ := r.matchOne(path, nil)
 		if n == nil {
 			b.Fail()
 		}
 	}
+}
+
+func TestRoute(t *testing.T) {
+	rt := new(router)
+	OnErrPanic(rt.AddHandler("/user.:format", newFuncHandler()))
+	OnErrPanic(rt.AddHandler("/v:version", newFuncHandler()))
+	PrintRouteTree(rt)
+	_, value := rt.matchOne("/user.json", nil)
+	t.Log(value)
+	r, value := rt.matchOne("/v3", nil)
+	t.Log(value, r.processor.handlerProcessor.vars)
 }

@@ -150,36 +150,35 @@ func compile(path string) (newPath string, names map[string]int, err error) {
 	nameIndex := 0
 	for _, s := range sections {
 		new = append(new, '/')
-		if s != "" {
-			switch s[0] {
-			case ':':
-				new = append(new, _WILDCARD)
-				if name := s[1:]; len(name) > 0 {
-					if isInvalidSection(name) {
-						goto ERROR
-					}
-					if names == nil {
-						names = make(map[string]int)
-					}
-					names[name] = nameIndex
-				}
-				nameIndex++
-			case '*':
-				new = append(new, _REMAINSALL)
-				if name := s[1:]; len(name) > 0 {
-					if isInvalidSection(name) {
-						goto ERROR
-					}
-					if names == nil {
-						names = make(map[string]int)
-					}
-					names[name] = nameIndex // -i means from section i to end
-				}
-				nameIndex++
-				break // if read '*', other section is ignored
-			default:
-				new = append(new, []byte(s)...)
+		i := len(s) - 1
+		last := i
+		var c byte
+		for ; i >= 0; i-- {
+			if s[i] == ':' {
+				c = _WILDCARD
+			} else if s[i] == '*' {
+				c = _REMAINSALL
+			} else {
+				continue
 			}
+			if name := s[i+1:]; len(name) > 0 {
+				if isInvalidSection(name) {
+					goto ERROR
+				}
+				if names == nil {
+					names = make(map[string]int)
+				}
+				names[name] = nameIndex
+			}
+			nameIndex++
+			last = i
+			break
+		}
+		if last != 0 {
+			new = append(new, []byte(s[:last])...)
+		}
+		if c != 0 {
+			new = append(new, c)
 		}
 	}
 	newPath = string(new)
