@@ -292,8 +292,8 @@ var r = rt()
 func BenchmarkMatchRouteNode(b *testing.B) {
 	// tt := test.WrapTest(b)
 	// path := "/legacy/issues/search/aaa/bbb/ccc/ddd"
-	// path := []byte("/user/repos")
-	path := []byte("/repos/julienschmidt/httprouter/stargazers")
+	// path := "/user/repos"
+	path := "/repos/julienschmidt/httprouter/stargazers"
 	// path := "/user/aa/exist"
 	for i := 0; i < b.N; i++ {
 		// pathIndex := 0
@@ -315,8 +315,8 @@ func TestRoute(t *testing.T) {
 	OnErrPanic(rt.AddHandler("/user.:format", newFuncHandler()))
 	OnErrPanic(rt.AddHandler("/v:version", newFuncHandler()))
 	PrintRouteTree(rt)
-	_, value := rt.matchOne([]byte("/user.json"), nil)
+	_, value := rt.matchOne("/user.json", nil)
 	t.Log(value)
-	r, value := rt.matchOne([]byte("/v3"), nil)
+	r, value := rt.matchOne("/v3", nil)
 	t.Log(value, r.processor.handlerProcessor.vars)
 }
