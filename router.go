@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/cosiner/golib/types"
+
 	. "github.com/cosiner/golib/errors"
 )
 
@@ -439,7 +441,7 @@ func (rt *router) MatchHandler(url *url.URL) (handler Handler, indexer URLVarInd
 }
 
 func (rt *router) matchHandler(url *url.URL, fn func(*urlVarIndexer, *routeProcessor)) URLVarIndexer {
-	path := url.Path
+	path := types.UnsafeBytes(url.Path)
 	indexer := Pool.newVarIndexer()
 	rt, values := rt.matchOne(path, indexer.values)
 	indexer.values = values
@@ -455,11 +457,11 @@ func (rt *router) MatchHandlerFilters(url *url.URL) (Handler,
 	var (
 		pathIndex int
 		continu   = true
-		path      = url.Path
+		path      = types.UnsafeBytes(url.Path)
+		indexer   = Pool.newVarIndexer()
+		values    = indexer.values
+		filters   = Pool.newFilters()
 		processor *routeProcessor
-		indexer            = Pool.newVarIndexer()
-		values             = indexer.values
-		filters   []Filter = Pool.newFilters()
 	)
 	for continu {
 		if processor = rt.processor; processor != nil {
@@ -565,7 +567,7 @@ func (rt *router) addChild(b byte, n *router) {
 // matchMultiple match multi route node
 // returned value:(first:next path start index, second:if continue, it's next node to match,
 // else it's final match node, last:whether continu match)
-func (rt *router) matchMultiple(path string, pathIndex int, values []string) (int,
+func (rt *router) matchMultiple(path []byte, pathIndex int, values []string) (int,
 	[]string, *router, bool) {
 	str, strIndex := rt.str, 1
 	pathIndex++
@@ -583,9 +585,9 @@ func (rt *router) matchMultiple(path string, pathIndex int, values []string) (in
 				for pathIndex < pathLen && path[pathIndex] != '/' {
 					pathIndex++
 				}
-				values = append(values, path[start:pathIndex])
+				values = append(values, types.UnsafeString(path[start:pathIndex]))
 			case _REMAINSALL: // parse end, full matched
-				values = append(values, path[pathIndex:pathLen])
+				values = append(values, types.UnsafeString(path[pathIndex:pathLen]))
 				pathIndex = pathLen
 				strIndex = strLen
 			default:
@@ -615,7 +617,7 @@ func (rt *router) matchMultiple(path string, pathIndex int, values []string) (in
 }
 
 // matchOne match one longest route node and return values of path variable
-func (rt *router) matchOne(path string, values []string) (*router, []string) {
+func (rt *router) matchOne(path []byte, values []string) (*router, []string) {
 	var (
 		str                string
 		strIndex, strLen   int
@@ -642,9 +644,9 @@ func (rt *router) matchOne(path string, values []string) (*router, []string) {
 					for pathIndex < pathLen && path[pathIndex] != '/' {
 						pathIndex++
 					}
-					values = append(values, path[start:pathIndex])
+					values = append(values, types.UnsafeString(path[start:pathIndex]))
 				case _REMAINSALL: // parse end, full matched
-					values = append(values, path[pathIndex:pathLen])
+					values = append(values, types.UnsafeString(path[pathIndex:pathLen]))
 					pathIndex = pathLen
 					strIndex = strLen
 				default:

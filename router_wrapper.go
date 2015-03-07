@@ -42,52 +42,48 @@ func (rw RouterWrapper) Destroy() {
 	})
 }
 
-// AddFuncHandler add a function handler, method are defined as constant string
-func (rw RouterWrapper) AddFuncHandler(pattern string, method string, handler HandlerFunc) error {
+func (rw RouterWrapper) panicOnAdd() error {
 	panic("Don't operate with router wrapper directly")
-	return nil
+}
+
+// AddFuncHandler add a function handler, method are defined as constant string
+func (rw RouterWrapper) AddFuncHandler(string, string, HandlerFunc) error {
+	return rw.panicOnAdd()
 }
 
 // AddHandler add a handler
-func (rw RouterWrapper) AddHandler(pattern string, handler Handler) error {
-	panic("Don't operate with router wrapper directly")
-	return nil
+func (rw RouterWrapper) AddHandler(string, Handler) error {
+	return rw.panicOnAdd()
 }
 
 // AddFuncFilter add function filter
-func (rw RouterWrapper) AddFuncFilter(pattern string, filter FilterFunc) error {
-	panic("Don't operate with router wrapper directly")
-	return nil
+func (rw RouterWrapper) AddFuncFilter(string, FilterFunc) error {
+	return rw.panicOnAdd()
 }
 
 // AddFilter add a filter
-func (rw RouterWrapper) AddFilter(pattern string, filter Filter) error {
-	panic("Don't operate with router wrapper directly")
-	return nil
+func (rw RouterWrapper) AddFilter(string, Filter) error {
+	return rw.panicOnAdd()
 }
 
 // AddFuncWebSocketHandler add a websocket functionhandler
-func (rw RouterWrapper) AddFuncWebSocketHandler(pattern string, handler WebSocketHandlerFunc) error {
-	panic("Don't operate with router wrapper directly")
-	return nil
+func (rw RouterWrapper) AddFuncWebSocketHandler(string, WebSocketHandlerFunc) error {
+	return rw.panicOnAdd()
 }
 
 // AddWebSocketHandler add a websocket handler
-func (rw RouterWrapper) AddWebSocketHandler(pattern string, handler WebSocketHandler) error {
-	panic("Don't operate with router wrapper directly")
-	return nil
+func (rw RouterWrapper) AddWebSocketHandler(string, WebSocketHandler) error {
+	return rw.panicOnAdd()
 }
 
 // AddFuncTaskHandler
-func (rw RouterWrapper) AddFuncTaskHandler(pattern string, handler TaskHandlerFunc) error {
-	panic("Don't operate with router wrapper directly")
-	return nil
+func (rw RouterWrapper) AddFuncTaskHandler(string, TaskHandlerFunc) error {
+	return rw.panicOnAdd()
 }
 
 // AddTaskHandler
-func (rw RouterWrapper) AddTaskHandler(pattern string, handler TaskHandler) error {
-	panic("Don't operate with router wrapper directly")
-	return nil
+func (rw RouterWrapper) AddTaskHandler(string, TaskHandler) error {
+	return rw.panicOnAdd()
 }
 
 // MatchHandlerFilters match given url to find all matched filters and final handler

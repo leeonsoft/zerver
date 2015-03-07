@@ -48,7 +48,7 @@ It now support three routes:
 * catch-all route: such as /home/*subpath, subpath is a variable in route, it will catch remains all url path, it should appeared in last of route for any route path after it will be ingored.
 
 __Customization__:
-Zerver also support customed Router by `NewServerWith`, user can wrap standard router to get a more powerful Router with great features, such as multiple domains.
+Zerver also support customed Router by `NewServerWith`, user can wrap standard router to get a more powerful Router with great features, such as multiple domains, for convenience, Zerver already provide a `ResponseWrapper` for common purpose and a `HostRouter` for multiple domain.
 
 __Route Match__:
 The standard Router will not performed backtracking, match priority:static > variable > catchall.
