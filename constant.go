@@ -11,6 +11,8 @@ const (
 	HEADER_CONTENTENCODING = "Content-Encoding"
 	HEADER_USERAGENT       = "User-Agent"
 	HEADER_ACCEPTENCODING  = "Accept-Encoding"
+	HEADER_CACHECONTROL    = "Cache-Control"
+	HEADER_EXPIRES         = "Expires"
 
 	// ContentEncoding
 	ENCODING_GZIP    = "gzip"
