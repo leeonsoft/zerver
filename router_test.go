@@ -3,9 +3,9 @@ package zerver_rest
 import (
 	"testing"
 
-	. "github.com/cosiner/golib/errors"
-
 	"github.com/cosiner/golib/test"
+
+	. "github.com/cosiner/golib/errors"
 )
 
 func TestCompile(t *testing.T) {
@@ -289,11 +289,11 @@ func rt() *router {
 
 var r = rt()
 
-func BenchmarkMatchRouteNode(b *testing.B) {
+func BenchmarkMatchRouteOne(b *testing.B) {
 	// tt := test.WrapTest(b)
 	// path := "/legacy/issues/search/aaa/bbb/ccc/ddd"
-	// path := "/user/repos"
-	path := "/repos/julienschmidt/httprouter/stargazers"
+	path := "/user/repos"
+	// path := "/repos/julienschmidt/httprouter/stargazers"
 	// path := "/user/aa/exist"
 	for i := 0; i < b.N; i++ {
 		// pathIndex := 0
@@ -303,20 +303,45 @@ func BenchmarkMatchRouteNode(b *testing.B) {
 		// for continu {
 		// 	pathIndex, vars, n, continu = n.matchMulti(path, pathIndex, vars)
 		// }
-		n, _ := r.matchOne(path, nil)
+		_, _ = r.matchOne(path, nil)
+	}
+}
+func BenchmarkMatchRouteMultiple(b *testing.B) {
+	// tt := test.WrapTest(b)
+	// path := "/legacy/issues/search/aaa/bbb/ccc/ddd"
+	// path := "/user/repos"
+	path := "/repos/julienschmidt/httprouter/stargazers"
+	// path := "/user/aa/exist"
+	for i := 0; i < b.N; i++ {
+		pathIndex := 0
+		var vars []string
+		var continu = true
+		n := r
+		for continu {
+			pathIndex, vars, n, continu = n.matchMultiple(path, pathIndex, vars)
+		}
 		if n == nil {
 			b.Fail()
 		}
 	}
 }
-
 func TestRoute(t *testing.T) {
 	rt := new(router)
 	OnErrPanic(rt.AddHandler("/user.:format", newFuncHandler()))
 	OnErrPanic(rt.AddHandler("/v:version", newFuncHandler()))
+	OnErrPanic(rt.AddHandler("/vaa/:id", newFuncHandler()))
+	// OnErrPanic(rt.AddHandler("/vba/:id", newFuncHandler()))
+	// OnErrPanic(rt.AddHandler("/v0a/:id", newFuncHandler()))
 	PrintRouteTree(rt)
 	_, value := rt.matchOne("/user.json", nil)
 	t.Log(value)
-	r, value := rt.matchOne("/v3", nil)
-	t.Log(value, r.processor.handlerProcessor.vars)
+	_, value = rt.matchOne("/vbc", nil)
+	t.Log(value)
+}
+
+func TestRoute2(t *testing.T) {
+	rt := new(router)
+	rt.AddHandler("/user/:id", newFuncHandler())
+	rt.AddHandler("/user/aaa", newFuncHandler())
+	t.Log(rt.matchOne("/user/aaa", nil))
 }

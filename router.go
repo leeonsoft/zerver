@@ -42,18 +42,6 @@ type (
 		MatchTaskHandler(url *url.URL) (TaskHandler, URLVarIndexer)
 	}
 
-	// URLVarIndexer is a indexer for name to value
-	URLVarIndexer interface {
-		// URLVar return value of variable
-		URLVar(name string) string
-		// ScanURLVars scan given values into variable addresses
-		// if address is nil, skip it
-		ScanURLVars(vars ...*string)
-		// URLVars return all values of variable
-		URLVars() []string
-		destroy()
-	}
-
 	// handlerProcessor keep handler and url variables of this route
 	handlerProcessor struct {
 		vars    map[string]int
@@ -87,19 +75,11 @@ type (
 		childs    []*router       // child routers
 		processor *routeProcessor // processor for current route node
 	}
-
-	// urlVarIndexer is an implementation of URLVarIndexer
-	urlVarIndexer struct {
-		vars   map[string]int // url variables and indexs of sections splited by '/'
-		values []string       // all url variable values
-	}
 )
 
 var (
 	// nilVars is empty variable map
 	nilVars = make(map[string]int)
-	// reserveChildsCount is route childs slice increment and init size for addPath
-	reserveChildsCount = 1
 	// PathVarCount is common url path variable count
 	// match functions of router will create a slice use it as capcity to store
 	// all path variable values
@@ -132,7 +112,7 @@ func pathSections(path string) []string {
 // all character
 func isInvalidSection(s string) bool {
 	for _, c := range s {
-		if bc := byte(c); bc == _WILDCARD || bc == _REMAINSALL {
+		if bc := byte(c); bc >= _WILDCARD {
 			return true
 		}
 	}
@@ -151,8 +131,8 @@ func compile(path string) (newPath string, names map[string]int, err error) {
 	nameIndex := 0
 	for _, s := range sections {
 		new = append(new, '/')
-		i := len(s) - 1
-		last := i
+		last := len(s)
+		i := last - 1
 		var c byte
 		for ; i >= 0; i-- {
 			if s[i] == ':' {
@@ -191,36 +171,6 @@ ERROR:
 	return "", nil,
 		Errorf("path %s has pre-defined characters %c or %c",
 			path, _WILDCARD, _REMAINSALL)
-}
-
-func (v *urlVarIndexer) destroy() {
-	v.values = v.values[:0]
-	v.vars = nil
-}
-
-// URLVar return values of variable
-func (v *urlVarIndexer) URLVar(name string) string {
-	if index, has := v.vars[name]; has {
-		return v.values[index]
-	}
-	return ""
-}
-
-// URLVars return all values of variable
-func (v *urlVarIndexer) URLVars() []string {
-	return v.values
-}
-
-// ScanURLVars scan values into variable addresses
-// if address is nil, skip it
-func (v *urlVarIndexer) ScanURLVars(vars ...*string) {
-	values := v.values
-	l1, l2 := len(values), len(vars)
-	for i := 0; i < l1 && i < l2; i++ {
-		if vars[i] != nil {
-			*vars[i] = values[i]
-		}
-	}
 }
 
 // init init handler and filters hold by routeProcessor
@@ -529,37 +479,17 @@ func (rt *router) moveAllToChild(childStr string, newStr string) {
 	rt.str = newStr
 }
 
-// insertChild insert a child at given index, element since this index
-// will all back an offset of 1 to make room for new element, the last
-// element will be overrided it
-func (rt *router) insertChild(index int, b byte, n *router) {
-	chars, childs := rt.chars, rt.childs
-	for i := len(chars) - 2; i >= index; i-- {
-		chars[i+1], childs[i+1] = chars[i], childs[i]
-	}
-	chars[index], childs[index] = b, n
-	rt.chars, rt.childs = chars, childs
-}
-
 // addChild add an child, all childs is sorted
 func (rt *router) addChild(b byte, n *router) {
 	chars, childs := rt.chars, rt.childs
 	l := len(chars)
-	if l == 0 {
-		chars, childs = make([]byte, 0, reserveChildsCount),
-			make([]*router, 0, reserveChildsCount)
-	} else if cap := cap(chars); l == cap {
-		cap += reserveChildsCount
-		chars, childs = make([]byte, cap), make([]*router, cap)
-		copy(chars, rt.chars)
-		copy(childs, rt.childs)
+	chars, childs = make([]byte, l+1), make([]*router, l+1)
+	copy(chars, rt.chars)
+	copy(childs, rt.childs)
+	for l = l; l > 0 && chars[l-1] > b; l-- {
+		chars[l], childs[l] = chars[l-1], childs[l-1]
 	}
-	chars, childs = chars[:l+1], childs[:l+1]
-	var i int
-	for i = l; i > 0 && chars[i] > b; i-- {
-		chars[i], childs[i] = chars[i-1], childs[i-1]
-	}
-	chars[i], childs[i] = b, n
+	chars[l], childs[l] = b, n
 	rt.chars, rt.childs = chars, childs
 }
 
@@ -568,8 +498,7 @@ func (rt *router) addChild(b byte, n *router) {
 // else it's final match node, last:whether continu match)
 func (rt *router) matchMultiple(path string, pathIndex int, values []string) (int,
 	[]string, *router, bool) {
-	str, strIndex := rt.str, 1
-	pathIndex++
+	str, strIndex := rt.str, 0
 	strLen, pathLen := len(str), len(path)
 	for strIndex < strLen {
 		if pathIndex != pathLen {
@@ -600,9 +529,8 @@ func (rt *router) matchMultiple(path string, pathIndex int, values []string) (in
 	if pathIndex != pathLen { // path not parse end, to find a child node to continue
 		var node *router
 		p := path[pathIndex]
-		chars := rt.chars
-		for i := range chars {
-			if chars[i] == p {
+		for i, c := range rt.chars {
+			if c == p || c >= _WILDCARD {
 				node = rt.childs[i] // child
 				break
 			}
@@ -624,11 +552,7 @@ func (rt *router) matchOne(path string, values []string) (*router, []string) {
 		node               = rt
 	)
 	for node != nil {
-		// skip first character, if it's root node, first char '/' can be safety skipped
-		// otherwise, current node is selected by it's first character in parent node
-		// so it also can be skipped
-		str, strIndex = rt.str, 1
-		pathIndex++
+		str, strIndex = rt.str, 0
 		strLen = len(str)
 		for strIndex < strLen {
 			if pathIndex != pathLen {
@@ -658,9 +582,8 @@ func (rt *router) matchOne(path string, values []string) (*router, []string) {
 		node = nil
 		if pathIndex != pathLen { // path not parse end, must find a child node to continue
 			p := path[pathIndex]
-			chars := rt.chars
-			for i := range chars {
-				if chars[i] == p {
+			for i, c := range rt.chars {
+				if c == p || c >= _WILDCARD {
 					node = rt.childs[i] // child
 					break
 				}
