@@ -11,8 +11,8 @@ import (
 func TestCompile(t *testing.T) {
 	tt := test.WrapTest(t)
 	tt.Log(compile("/:user/:id/:a"))
-	tt.Log(compile("/user/:a/|abc/"))
-	tt.Log(compile("/user/:/|abc/"))
+	tt.Log(compile("/user/:a/:abc/"))
+	tt.Log(compile("/user/:/:abc/"))
 }
 
 // routes is copy from github.com/julienschmidt/go-http-routing-benchmark

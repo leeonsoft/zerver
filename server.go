@@ -16,6 +16,7 @@ type (
 		Router
 		AttrContainer
 		handlerMatcher func(*url.URL) (Handler, URLVarIndexer, []Filter)
+		globalFilters  []Filter
 	}
 
 	serverGetter interface {
@@ -27,12 +28,16 @@ var disableFilter bool
 
 // NewServer create a new server
 func NewServer() *Server {
-	return &Server{Router: NewRouter(), AttrContainer: NewLockedAttrContainer()}
+	return NewServerWith(NewRouter())
 }
 
 // NewServerWith create a new server with given router
 func NewServerWith(rt Router) *Server {
-	return &Server{Router: rt, AttrContainer: NewLockedAttrContainer()}
+	return &Server{
+		Router:        rt,
+		AttrContainer: NewLockedAttrContainer(),
+		globalFilters: make([]Filter, 0, 5),
+	}
 }
 
 func (s *Server) Server() *Server {
@@ -111,6 +116,14 @@ func (s *Server) matchHandlerNoFilters(url *url.URL) (Handler, URLVarIndexer, []
 	return handler, indexer, nil
 }
 
+func (s *Server) notFoundHandler(req Request, resp Response) {
+	resp.ReportNotFound()
+}
+
+func (s *Server) methodNotAllowedHandler(req Request, resp Response) {
+	resp.ReportMethodNotAllowed()
+}
+
 // serveHTTP serve for http protocal
 func (s *Server) serveHTTP(w http.ResponseWriter, request *http.Request) {
 	url := request.URL
@@ -118,17 +131,13 @@ func (s *Server) serveHTTP(w http.ResponseWriter, request *http.Request) {
 	handler, indexer, filters := s.handlerMatcher(url)
 	requestEnv := Pool.newRequestEnv()
 	req, resp := requestEnv.req.init(s, request, indexer), requestEnv.resp.init(w)
-	if handler != nil {
-		if handlerFunc := IndicateHandler(req.Method(), handler); handlerFunc == nil {
-			resp.ReportStatus(http.StatusMethodNotAllowed)
-		} else if len(filters) == 0 {
-			handlerFunc(req, resp)
-		} else {
-			NewFilterChain(filters, handlerFunc).Filter(req, resp)
-		}
-	} else { // no handler means no resource there
-		resp.ReportStatus(http.StatusNotFound)
+	var handlerFunc HandlerFunc
+	if handler == nil {
+		handlerFunc = s.notFoundHandler
+	} else if handlerFunc = IndicateHandler(req.Method(), handler); handlerFunc == nil {
+		handlerFunc = s.methodNotAllowedHandler
 	}
+	NewFilterChain(s.globalFilters, NewFilterChain(filters, handlerFunc))(req, resp)
 	req.destroy()
 	resp.destroy()
 	indexer.destroy()
@@ -150,6 +159,14 @@ func (s *Server) serveTask(path string, value interface{}) {
 	handler.Handle(newTask(s, indexer, value))
 	indexer.destroy()
 	Pool.recycleVarIndexer(indexer)
+}
+
+func (s *Server) AddGlobalFilter(filter Filter) {
+	s.globalFilters = append(s.globalFilters, filter)
+}
+
+func (s *Server) AddGlobalFuncFilter(filter FilterFunc) {
+	s.AddGlobalFilter(filter)
 }
 
 // Get register a function handler process GET request for given pattern

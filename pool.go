@@ -12,10 +12,11 @@ type requestEnv struct {
 }
 
 type ServerPool struct {
-	requestEnvPool *sync.Pool
-	varIndexerPool *sync.Pool
-	filtersPool    *sync.Pool
-	otherPools     map[string]*sync.Pool
+	requestEnvPool  *sync.Pool
+	varIndexerPool  *sync.Pool
+	filtersPool     *sync.Pool
+	filterChainPool *sync.Pool
+	otherPools      map[string]*sync.Pool
 }
 
 var Pool *ServerPool = &ServerPool{
@@ -32,6 +33,11 @@ var Pool *ServerPool = &ServerPool{
 	filtersPool: &sync.Pool{
 		New: func() interface{} {
 			return make([]Filter, 0, FilterCount)
+		},
+	},
+	filterChainPool: &sync.Pool{
+		New: func() interface{} {
+			return new(filterChain)
 		},
 	},
 	otherPools: make(map[string]*sync.Pool),
@@ -62,6 +68,10 @@ func (pool *ServerPool) newFilters() []Filter {
 	return pool.filtersPool.Get().([]Filter)
 }
 
+func (pool *ServerPool) newFilterChain() *filterChain {
+	return pool.filterChainPool.Get().(*filterChain)
+}
+
 func (pool *ServerPool) recycleRequestEnv(req *requestEnv) {
 	pool.requestEnvPool.Put(req)
 }
@@ -75,6 +85,10 @@ func (pool *ServerPool) recycleFilters(filters []Filter) {
 		filters = filters[:0]
 		pool.filtersPool.Put(filters)
 	}
+}
+
+func (pool *ServerPool) recycleFilterChain(chain *filterChain) {
+	pool.filterChainPool.Put(chain)
 }
 
 func (pool *ServerPool) RecycleTo(name string, value interface{}) {

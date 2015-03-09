@@ -26,5 +26,5 @@ func (sr secureResponse) SetSecureCookie(name, value string, lifetime int) {
 }
 
 func SecureCookieFilter(req zerver.Request, resp zerver.Response, chain zerver.FilterChain) {
-	chain.Filter(secureRequest{req}, secureResponse{resp})
+	chain(secureRequest{req}, secureResponse{resp})
 }

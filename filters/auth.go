@@ -28,7 +28,7 @@ const (
 func AuthFilter(req zerver.Request, resp zerver.Response, chain zerver.FilterChain) {
 	tok := req.Header(_AUTH_HEADER)
 	if tok != "" && TokValidator.IsValid(tok) && TokValidator.IsExist(tok) {
-		chain.Filter(req, resp)
+		chain(req, resp)
 	} else {
 		resp.ReportStatus(_AUTHFAILED)
 	}
