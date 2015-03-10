@@ -16,7 +16,7 @@ type (
 		Router
 		AttrContainer
 		handlerMatcher func(*url.URL) (Handler, URLVarIndexer, []Filter)
-		globalFilters  []Filter
+		RootFilters
 	}
 
 	serverGetter interface {
@@ -28,18 +28,22 @@ var disableFilter bool
 
 // NewServer create a new server
 func NewServer() *Server {
-	return NewServerWith(NewRouter())
+	return NewServerWith(NewRouter(), nil)
 }
 
-// NewServerWith create a new server with given router
-func NewServerWith(rt Router) *Server {
+// NewServerWith create a new server with given router and root filters
+func NewServerWith(rt Router, filters RootFilters) *Server {
+	if filters == nil {
+		filters = NewRootFilters()
+	}
 	return &Server{
 		Router:        rt,
 		AttrContainer: NewLockedAttrContainer(),
-		globalFilters: make([]Filter, 0, 5),
+		RootFilters:   filters,
 	}
 }
 
+// Implement serverGetter
 func (s *Server) Server() *Server {
 	return s
 }
@@ -66,6 +70,8 @@ func (s *Server) start() {
 		return true
 	})
 	log.Println("Server Start")
+	// destroy temporary data store
+	tmpDestroy()
 }
 
 // Start start server as http server
@@ -116,11 +122,11 @@ func (s *Server) matchHandlerNoFilters(url *url.URL) (Handler, URLVarIndexer, []
 	return handler, indexer, nil
 }
 
-func (s *Server) notFoundHandler(req Request, resp Response) {
+func notFoundHandler(req Request, resp Response) {
 	resp.ReportNotFound()
 }
 
-func (s *Server) methodNotAllowedHandler(req Request, resp Response) {
+func methodNotAllowedHandler(req Request, resp Response) {
 	resp.ReportMethodNotAllowed()
 }
 
@@ -133,11 +139,15 @@ func (s *Server) serveHTTP(w http.ResponseWriter, request *http.Request) {
 	req, resp := requestEnv.req.init(s, request, indexer), requestEnv.resp.init(w)
 	var handlerFunc HandlerFunc
 	if handler == nil {
-		handlerFunc = s.notFoundHandler
-	} else if handlerFunc = IndicateHandler(req.Method(), handler); handlerFunc == nil {
-		handlerFunc = s.methodNotAllowedHandler
+		handlerFunc = notFoundHandler
+	} else if handlerFunc = handler.Handler(req.Method()); handlerFunc == nil {
+		handlerFunc = methodNotAllowedHandler
 	}
-	NewFilterChain(s.globalFilters, NewFilterChain(filters, handlerFunc))(req, resp)
+	chain := NewFilterChain(filters, handlerFunc)
+	if url.Path == "/" {
+		chain = NewFilterChain(s.Filters(url), chain)
+	}
+	chain(req, resp)
 	req.destroy()
 	resp.destroy()
 	indexer.destroy()
@@ -150,23 +160,19 @@ func (s *Server) serveHTTP(w http.ResponseWriter, request *http.Request) {
 func (s *Server) serveTask(path string, value interface{}) {
 	u, err := url.Parse(path)
 	if err != nil {
-		s.PanicServer(err.Error())
+		PanicServer(err.Error())
 	}
 	handler, indexer := s.MatchTaskHandler(u)
 	if handler == nil {
-		s.PanicServer("No task handler found for " + path)
+		PanicServer("No task handler found for " + path)
 	}
 	handler.Handle(newTask(s, indexer, value))
 	indexer.destroy()
 	Pool.recycleVarIndexer(indexer)
 }
 
-func (s *Server) AddGlobalFilter(filter Filter) {
-	s.globalFilters = append(s.globalFilters, filter)
-}
-
-func (s *Server) AddGlobalFuncFilter(filter FilterFunc) {
-	s.AddGlobalFilter(filter)
+func (s *Server) AddRootFuncFilter(filter FilterFunc) {
+	s.AddRootFilter(filter)
 }
 
 // Get register a function handler process GET request for given pattern
@@ -195,6 +201,6 @@ func (s *Server) Patch(pattern string, handlerFunc HandlerFunc) {
 }
 
 // PanicServer create a new goroutine, it force panic whole process
-func (*Server) PanicServer(s string) {
+func PanicServer(s string) {
 	go panic(s)
 }

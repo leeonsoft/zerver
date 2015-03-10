@@ -4,7 +4,6 @@ import "net/url"
 
 type (
 	RouterStore interface {
-		AddRouter(ident string, rt Router)
 		FindRouter(*url.URL) Router
 		Iterate(func(Router))
 	}
@@ -16,6 +15,7 @@ type (
 	HostRouter struct {
 		hosts   []string
 		routers []Router
+		filters []RootFilters
 	}
 )
 
@@ -23,6 +23,53 @@ func NewHostRouter() RouterWrapper {
 	return RouterWrapper{
 		RouterStore: new(HostRouter),
 	}
+}
+
+func (hr *HostRouter) AddRouter(host string, rt Router, rootFilters RootFilters) {
+	l := len(hr.hosts) + 1
+	hosts, routers, filters := make([]string, l), make([]Router, l), make([]RootFilters, l)
+	copy(hosts, hr.hosts)
+	copy(routers, hr.routers)
+	copy(filters, hr.filters)
+	hosts[l], routers[l], filters[l] = host, rt, rootFilters
+	hr.hosts, hr.routers, hr.filters = hosts, routers, filters
+}
+
+// Implement RouterStore
+
+func (hr *HostRouter) FindRouter(url *url.URL) Router {
+	host, hosts := url.Host, hr.hosts
+	for i := range hosts {
+		if hosts[i] == host {
+			return hr.routers[i]
+		}
+	}
+	return nil
+}
+
+func (hr *HostRouter) Iterate(fn func(Router)) {
+	routers := hr.routers
+	for i := range routers {
+		fn(routers[i])
+	}
+}
+
+// Implement RootFilters
+
+// Filters return all root filters
+func (hr *HostRouter) Filters(url *url.URL) []Filter {
+	host, hosts := url.Host, hr.hosts
+	for i := range hosts {
+		if hosts[i] == host {
+			return hr.filters[i].Filters(url)
+		}
+	}
+	return nil
+}
+
+// AddRootFilter add root filter for "/"
+func (hr *HostRouter) AddRootFilter(Filter) {
+	panicOnAdd()
 }
 
 // Init init handlers and filters, websocket handlers
@@ -42,48 +89,49 @@ func (rw RouterWrapper) Destroy() {
 	})
 }
 
-func (rw RouterWrapper) panicOnAdd() error {
-	panic("Don't operate with router wrapper directly")
+func panicOnAdd() error {
+	PanicServer("Don't operate with router wrapper directly")
+	return nil
 }
 
 // AddFuncHandler add a function handler, method are defined as constant string
-func (rw RouterWrapper) AddFuncHandler(string, string, HandlerFunc) error {
-	return rw.panicOnAdd()
+func (RouterWrapper) AddFuncHandler(string, string, HandlerFunc) error {
+	return panicOnAdd()
 }
 
 // AddHandler add a handler
-func (rw RouterWrapper) AddHandler(string, Handler) error {
-	return rw.panicOnAdd()
+func (RouterWrapper) AddHandler(string, Handler) error {
+	return panicOnAdd()
 }
 
 // AddFuncFilter add function filter
-func (rw RouterWrapper) AddFuncFilter(string, FilterFunc) error {
-	return rw.panicOnAdd()
+func (RouterWrapper) AddFuncFilter(string, FilterFunc) error {
+	return panicOnAdd()
 }
 
 // AddFilter add a filter
-func (rw RouterWrapper) AddFilter(string, Filter) error {
-	return rw.panicOnAdd()
+func (RouterWrapper) AddFilter(string, Filter) error {
+	return panicOnAdd()
 }
 
 // AddFuncWebSocketHandler add a websocket functionhandler
-func (rw RouterWrapper) AddFuncWebSocketHandler(string, WebSocketHandlerFunc) error {
-	return rw.panicOnAdd()
+func (RouterWrapper) AddFuncWebSocketHandler(string, WebSocketHandlerFunc) error {
+	return panicOnAdd()
 }
 
 // AddWebSocketHandler add a websocket handler
-func (rw RouterWrapper) AddWebSocketHandler(string, WebSocketHandler) error {
-	return rw.panicOnAdd()
+func (RouterWrapper) AddWebSocketHandler(string, WebSocketHandler) error {
+	return panicOnAdd()
 }
 
 // AddFuncTaskHandler
-func (rw RouterWrapper) AddFuncTaskHandler(string, TaskHandlerFunc) error {
-	return rw.panicOnAdd()
+func (RouterWrapper) AddFuncTaskHandler(string, TaskHandlerFunc) error {
+	return panicOnAdd()
 }
 
 // AddTaskHandler
-func (rw RouterWrapper) AddTaskHandler(string, TaskHandler) error {
-	return rw.panicOnAdd()
+func (RouterWrapper) AddTaskHandler(string, TaskHandler) error {
+	return panicOnAdd()
 }
 
 // MatchHandlerFilters match given url to find all matched filters and final handler
@@ -116,30 +164,4 @@ func (rw RouterWrapper) MatchTaskHandler(url *url.URL) (handler TaskHandler, ind
 		handler, indexer = router.MatchTaskHandler(url)
 	}
 	return
-}
-
-func (hr *HostRouter) AddRouter(host string, rt Router) {
-	l := len(hr.hosts) + 1
-	hosts, routers := make([]string, l), make([]Router, l)
-	copy(hosts, hr.hosts)
-	copy(routers, hr.routers)
-	hosts[l], routers[l] = host, rt
-	hr.hosts, hr.routers = hosts, routers
-}
-
-func (hr *HostRouter) FindRouter(url *url.URL) Router {
-	host, hosts := url.Host, hr.hosts
-	for i := range hosts {
-		if hosts[i] == host {
-			return hr.routers[i]
-		}
-	}
-	return nil
-}
-
-func (hr *HostRouter) Iterate(fn func(Router)) {
-	routers := hr.routers
-	for i := range routers {
-		fn(routers[i])
-	}
 }

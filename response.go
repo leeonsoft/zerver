@@ -25,12 +25,12 @@ type (
 		ReportStatus(statusCode int)
 		Hijack() (net.Conn, *bufio.ReadWriter, error)
 		Flush()
-		destroy()
 		io.Writer
 		StatusResponse
 		CacheSeconds(secs int)
 		CacheUntil(*time.Time)
 		NoCache()
+		destroy()
 	}
 
 	// response represent a response of request to user

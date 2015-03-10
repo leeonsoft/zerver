@@ -8,9 +8,14 @@ type InfoLogger interface {
 	Infoln(v ...interface{})
 }
 
-var Logger InfoLogger
+var logger InfoLogger
 
-func LogFilter(req zerver.Request, resp zerver.Response, chain zerver.FilterChain) {
-	Logger.Infoln(req.RemoteAddr(), req.URL().String(), req.UserAgent())
+func NewLogFilter(l InfoLogger) zerver.Filter {
+	logger = l
+	return (zerver.FilterFunc)(logFilter)
+}
+
+func logFilter(req zerver.Request, resp zerver.Response, chain zerver.FilterChain) {
+	logger.Infoln(req.RemoteAddr(), req.URL().String(), req.UserAgent())
 	chain(req, resp)
 }

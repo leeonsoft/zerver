@@ -265,11 +265,11 @@ func (rt *router) routeProcessor() *routeProcessor {
 
 // AddFuncHandler add function handler to router for given pattern and method
 func (rt *router) AddFuncHandler(pattern, method string, handler HandlerFunc) (err error) {
-	if fHandler := tmp.funcHandler(pattern); fHandler == nil {
+	if fHandler := _tmpGetFuncHandler(pattern); fHandler == nil {
 		fHandler = newFuncHandler()
 		fHandler.setMethodHandler(method, handler)
 		if err = rt.AddHandler(pattern, fHandler); err == nil {
-			tmp.setFuncHandler(pattern, fHandler)
+			_tmpSetFuncHandler(pattern, fHandler)
 		}
 	} else {
 		fHandler.setMethodHandler(method, handler)
@@ -486,7 +486,7 @@ func (rt *router) addChild(b byte, n *router) {
 	chars, childs = make([]byte, l+1), make([]*router, l+1)
 	copy(chars, rt.chars)
 	copy(childs, rt.childs)
-	for l = l; l > 0 && chars[l-1] > b; l-- {
+	for ; l > 0 && chars[l-1] > b; l-- {
 		chars[l], childs[l] = chars[l-1], childs[l-1]
 	}
 	chars[l], childs[l] = b, n
@@ -620,4 +620,16 @@ func (rt *router) accessAllChilds(fn func(*router) bool) {
 			break
 		}
 	}
+}
+
+func _tmpGetFuncHandler(pattern string) *funcHandler {
+	h := TmpHGet("funcHandlers", pattern)
+	if h == nil {
+		return nil
+	}
+	return h.(*funcHandler)
+}
+
+func _tmpSetFuncHandler(pattern string, handler *funcHandler) {
+	TmpHSet("funcHandlers", pattern, handler)
 }

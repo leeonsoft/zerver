@@ -1,21 +1,55 @@
 package zerver_rest
 
-type _tmp struct {
-	_funcHandlers map[string]*funcHandler // function handlers - pattern->handler
+import (
+	"fmt"
+
+	"github.com/cosiner/golib/types"
+)
+
+// Tmp* provide a temporary data store, it should not be used after server start
+var _tmp = make(map[string]interface{})
+
+func TmpSet(key string, value interface{}) {
+	_tmpCheck()
+	_tmp[key] = value
 }
 
-var tmp = &_tmp{
-	_funcHandlers: make(map[string]*funcHandler),
+func TmpHSet(key, key2 string, value interface{}) {
+	_tmpCheck()
+	fmt.Println("ddd")
+	vs := _tmp[key]
+	values, ok := vs.(map[string]interface{})
+	if !ok {
+		return
+	}
+	if values == nil {
+		values := make(map[string]interface{})
+		_tmp[key] = values
+	}
+	values[key2] = value
 }
 
-func (t *_tmp) destroy() {
-	t._funcHandlers = nil
+func TmpGet(key string) interface{} {
+	_tmpCheck()
+	return _tmp[key]
 }
 
-func (t *_tmp) funcHandler(pattern string) *funcHandler {
-	return t._funcHandlers[pattern]
+func TmpHGet(key, key2 string) interface{} {
+	_tmpCheck()
+	values := _tmp[key]
+	if values != nil {
+		vs := values.(map[string]interface{})
+		return vs[key2]
+	}
+	return nil
 }
 
-func (t *_tmp) setFuncHandler(pattern string, handler *funcHandler) {
-	t._funcHandlers[pattern] = handler
+func tmpDestroy() {
+	_tmp = nil
+}
+
+func _tmpCheck() {
+	if _tmp == nil {
+		panic(fmt.Sprintf("Temporary data store has been destroyed: %s", types.CallerPosition(2)))
+	}
 }

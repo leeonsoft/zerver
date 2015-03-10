@@ -16,8 +16,7 @@ type (
 )
 
 var (
-	TokValidator TokenValidator
-	AuthKey      []byte
+	tokValidator TokenValidator
 )
 
 const (
@@ -25,9 +24,14 @@ const (
 	_AUTHFAILED  = http.StatusUnauthorized
 )
 
-func AuthFilter(req zerver.Request, resp zerver.Response, chain zerver.FilterChain) {
+func NewAuthFilter(validator TokenValidator) zerver.Filter {
+	tokValidator = validator
+	return (zerver.FilterFunc)(authFilter)
+}
+
+func authFilter(req zerver.Request, resp zerver.Response, chain zerver.FilterChain) {
 	tok := req.Header(_AUTH_HEADER)
-	if tok != "" && TokValidator.IsValid(tok) && TokValidator.IsExist(tok) {
+	if tok != "" && tokValidator.IsValid(tok) && tokValidator.IsExist(tok) {
 		chain(req, resp)
 	} else {
 		resp.ReportStatus(_AUTHFAILED)
