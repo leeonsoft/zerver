@@ -1,11 +1,16 @@
 package zerver_rest
 
-import "net/url"
+import (
+	"io"
+	"net/url"
+
+	"github.com/cosiner/golib/sys"
+)
 
 type (
 	RouterStore interface {
 		FindRouter(*url.URL) Router
-		Iterate(func(Router))
+		Iterate(func(ident string, router Router))
 	}
 
 	RouterWrapper struct {
@@ -47,10 +52,10 @@ func (hr *HostRouter) FindRouter(url *url.URL) Router {
 	return nil
 }
 
-func (hr *HostRouter) Iterate(fn func(Router)) {
-	routers := hr.routers
+func (hr *HostRouter) Iterate(fn func(string, Router)) {
+	hosts, routers := hr.hosts, hr.routers
 	for i := range routers {
-		fn(routers[i])
+		fn(hosts[i], routers[i])
 	}
 }
 
@@ -77,14 +82,14 @@ func (rw RouterWrapper) Init(initHandler func(Handler) bool,
 	initFilter func(Filter) bool,
 	initWebSocket func(WebSocketHandler) bool,
 	initTask func(TaskHandler) bool) {
-	rw.Iterate(func(rt Router) {
+	rw.Iterate(func(_ string, rt Router) {
 		rt.Init(initHandler, initFilter, initWebSocket, initTask)
 	})
 }
 
 // Destroy destroy router, also responsible for destroy all handlers and filters
 func (rw RouterWrapper) Destroy() {
-	rw.Iterate(func(rt Router) {
+	rw.Iterate(func(_ string, rt Router) {
 		rt.Destroy()
 	})
 }
@@ -164,4 +169,28 @@ func (rw RouterWrapper) MatchTaskHandler(url *url.URL) (handler TaskHandler, ind
 		handler, indexer = router.MatchTaskHandler(url)
 	}
 	return
+}
+
+type indentWriter struct {
+	io.Writer
+}
+
+var indentBytes = []byte("    ")
+var indentBytesLen = len(indentBytes)
+
+func (w indentWriter) Write(data []byte) (int, error) {
+	c, e := w.Writer.Write(indentBytes)
+	if e == nil {
+		c1, e1 := w.Writer.Write(data)
+		c, e = c+c1, e1
+	}
+	return c, e
+}
+
+func (rw RouterWrapper) PrintRouteTree(w io.Writer) {
+	rw.Iterate(func(ident string, rt Router) {
+		if _, e := sys.WriteStrln(w, ident); e == nil {
+			rt.PrintRouteTree(indentWriter{w})
+		}
+	})
 }

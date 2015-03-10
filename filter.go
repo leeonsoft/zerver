@@ -30,10 +30,10 @@ type (
 		handler HandlerFunc
 	}
 
-	simpleFilterChain struct {
-		runFilter bool
-		filter    Filter
-		handler   HandlerFunc
+	// handlerInterceptor is a interceptor
+	handlerInterceptor struct {
+		filter  Filter
+		handler HandlerFunc
 	}
 
 	// Only mmatch for url.Path = "/", others are not concerned
@@ -69,48 +69,24 @@ func (rfs *rootFilters) AddRootFilter(filter Filter) {
 	*rfs = append(*rfs, filter)
 }
 
-// There three methods to use Filter/FilterFunc
-// 1. add filters to router for common filter
-//    such as router.AddFilter/AddFuncFilter(pattern, filter)
-// 2. add filters to handler for multiple methods handler
-//     such as add
-// 3. add filters to function handler for intercept
-
 // NewFilterChain create a chain of filter
 // this method is setup to public for which condition there only one route
 // need filter, if add to global router, it will make router match slower
 // this method can help for these condition
+//
+// NOTICE: FilterChain keeps some states, it should be use only once
+// if need unlimit FilterChain, use InterceptHandler replace
+// but it takes less memory space, InterceptHandler takes more, make your choice
 func NewFilterChain(filters []Filter, handler func(Request, Response)) FilterChain {
-	if handler == nil {
-		handler = emptyHandlerFunc
-	}
 	if l := len(filters); l == 0 {
 		return handler
 	} else if l == 1 {
-		return newSimpleFilterChain(filters[0], handler)
+		return newInterceptHandler(handler, filters[0])
 	}
 	chain := Pool.newFilterChain()
 	chain.filters = filters
 	chain.handler = handler
 	return chain.continueChain
-}
-
-// InterceptHandle wrap a handler with a filter function as a interceptor
-func InterceptHandler(filter Filter, handler func(Request, Response)) func(Request, Response) {
-	if handler == nil {
-		handler = emptyHandlerFunc
-	}
-	if filter == nil {
-		return handler
-	}
-	return newSimpleFilterChain(filter, handler)
-}
-
-func newSimpleFilterChain(filter Filter, handler func(Request, Response)) func(Request, Response) {
-	return (&simpleFilterChain{
-		filter:  filter,
-		handler: handler,
-	}).continueChain
 }
 
 // continueChain call next filter, if there is no next filter,then call final handler
@@ -119,22 +95,14 @@ func newSimpleFilterChain(filter Filter, handler func(Request, Response)) func(R
 func (chain *filterChain) continueChain(req Request, resp Response) {
 	filters := chain.filters
 	if len(filters) == 0 {
+		if h := chain.handler; h != nil {
+			chain.handler(req, resp)
+		}
 		chain.destroy()
-		chain.handler(req, resp)
 	} else {
 		filter := filters[0]
 		chain.filters = filters[1:]
 		filter.Filter(req, resp, chain.continueChain)
-	}
-}
-
-func (chain *simpleFilterChain) continueChain(req Request, resp Response) {
-	runFilter := !chain.runFilter
-	chain.runFilter = runFilter
-	if runFilter {
-		chain.filter.Filter(req, resp, chain.continueChain)
-	} else {
-		chain.handler(req, resp)
 	}
 }
 
@@ -143,4 +111,28 @@ func (chain *filterChain) destroy() {
 	chain.filters = nil
 	chain.handler = nil
 	Pool.recycleFilterChain(chain)
+}
+
+// InterceptHandler will create a permanent HandlerFunc/FilterChain, there is no
+// states keeps, it can be used without limitation
+// InterceptHandler wrap a handler with some filters as a interceptor
+func InterceptHandler(handler func(Request, Response), filters ...Filter) func(Request, Response) {
+	if len(filters) == 0 {
+		return handler
+	}
+	return newInterceptHandler(InterceptHandler(handler, filters[1:]...), filters[0])
+}
+
+func newInterceptHandler(handler func(Request, Response), filter Filter) func(Request, Response) {
+	if handler == nil {
+		handler = emptyHandlerFunc
+	}
+	return (&handlerInterceptor{
+		filter:  filter,
+		handler: handler,
+	}).Handle
+}
+
+func (interceptor *handlerInterceptor) Handle(req Request, resp Response) {
+	interceptor.filter.Filter(req, resp, FilterChain(interceptor.handler))
 }

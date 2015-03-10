@@ -15,8 +15,8 @@ type (
 	Server struct {
 		Router
 		AttrContainer
-		handlerMatcher func(*url.URL) (Handler, URLVarIndexer, []Filter)
 		RootFilters
+		handlerMatcher func(*url.URL) (Handler, URLVarIndexer, []Filter)
 	}
 
 	serverGetter interface {
@@ -122,14 +122,6 @@ func (s *Server) matchHandlerNoFilters(url *url.URL) (Handler, URLVarIndexer, []
 	return handler, indexer, nil
 }
 
-func notFoundHandler(req Request, resp Response) {
-	resp.ReportNotFound()
-}
-
-func methodNotAllowedHandler(req Request, resp Response) {
-	resp.ReportMethodNotAllowed()
-}
-
 // serveHTTP serve for http protocal
 func (s *Server) serveHTTP(w http.ResponseWriter, request *http.Request) {
 	url := request.URL
@@ -137,11 +129,16 @@ func (s *Server) serveHTTP(w http.ResponseWriter, request *http.Request) {
 	handler, indexer, filters := s.handlerMatcher(url)
 	requestEnv := Pool.newRequestEnv()
 	req, resp := requestEnv.req.init(s, request, indexer), requestEnv.resp.init(w)
+
 	var handlerFunc HandlerFunc
 	if handler == nil {
-		handlerFunc = notFoundHandler
+		// resp.setStatus(http.StatusNotFound)
+		// handlerFunc = notFoundHandler
+		resp.ReportNotFound()
 	} else if handlerFunc = handler.Handler(req.Method()); handlerFunc == nil {
-		handlerFunc = methodNotAllowedHandler
+		// resp.setStatus(http.StatusMethodNotAllowed)
+		// handlerFunc = methodNotAllowedHandler
+		resp.ReportMethodNotAllowed()
 	}
 	chain := NewFilterChain(filters, handlerFunc)
 	if url.Path == "/" {

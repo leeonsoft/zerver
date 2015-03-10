@@ -1,6 +1,7 @@
 package zerver_rest
 
 import (
+	"os"
 	"testing"
 
 	"github.com/cosiner/golib/test"
@@ -292,8 +293,8 @@ var r = rt()
 func BenchmarkMatchRouteOne(b *testing.B) {
 	// tt := test.WrapTest(b)
 	// path := "/legacy/issues/search/aaa/bbb/ccc/ddd"
-	path := "/user/repos"
-	// path := "/repos/julienschmidt/httprouter/stargazers"
+	// path := "/user/repos"
+	path := "/repos/julienschmidt/httprouter/stargazers"
 	// path := "/user/aa/exist"
 	for i := 0; i < b.N; i++ {
 		// pathIndex := 0
@@ -306,6 +307,7 @@ func BenchmarkMatchRouteOne(b *testing.B) {
 		_, _ = r.matchOne(path, nil)
 	}
 }
+
 func BenchmarkMatchRouteMultiple(b *testing.B) {
 	// tt := test.WrapTest(b)
 	// path := "/legacy/issues/search/aaa/bbb/ccc/ddd"
@@ -325,6 +327,7 @@ func BenchmarkMatchRouteMultiple(b *testing.B) {
 		}
 	}
 }
+
 func TestRoute(t *testing.T) {
 	rt := new(router)
 	OnErrPanic(rt.AddHandler("/user.:format", newFuncHandler()))
@@ -332,7 +335,7 @@ func TestRoute(t *testing.T) {
 	OnErrPanic(rt.AddHandler("/vaa/:id", newFuncHandler()))
 	// OnErrPanic(rt.AddHandler("/vba/:id", newFuncHandler()))
 	// OnErrPanic(rt.AddHandler("/v0a/:id", newFuncHandler()))
-	PrintRouteTree(rt)
+	rt.PrintRouteTree(os.Stdout)
 	_, value := rt.matchOne("/user.json", nil)
 	t.Log(value)
 	_, value = rt.matchOne("/vbc", nil)

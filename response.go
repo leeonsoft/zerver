@@ -22,6 +22,7 @@ type (
 		SetCookie(name, value string, lifetime int)
 		SetSecureCookie(name, value string, lifetime int)
 		DeleteClientCookie(name string)
+		Status() int
 		ReportStatus(statusCode int)
 		Hijack() (net.Conn, *bufio.ReadWriter, error)
 		Flush()
@@ -36,18 +37,29 @@ type (
 	// response represent a response of request to user
 	response struct {
 		http.ResponseWriter
-		header http.Header
+		header       http.Header
+		status       int
+		statusWrited bool
 	}
 )
+
+func (resp *response) Write(data []byte) (int, error) {
+	resp.statusWrited = true
+	return resp.ResponseWriter.Write(data)
+}
 
 // newResponse create a new response, and set default content type to HTML
 func (resp *response) init(w http.ResponseWriter) Response {
 	resp.ResponseWriter = w
 	resp.header = w.Header()
+	resp.status = http.StatusOK
 	return resp
 }
 
 func (resp *response) destroy() {
+	if !resp.statusWrited {
+		resp.WriteHeader(resp.status)
+	}
 	resp.ResponseWriter = nil
 	resp.header = nil
 }
@@ -69,7 +81,11 @@ func (resp *response) RemoveHeader(name string) {
 
 // ReportStatus report an http status with given status code
 func (resp *response) ReportStatus(statusCode int) {
-	resp.WriteHeader(statusCode)
+	resp.status = statusCode
+}
+
+func (resp *response) Status() int {
+	return resp.status
 }
 
 // Hijack hijack response connection

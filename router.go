@@ -1,9 +1,11 @@
 package zerver_rest
 
 import (
-	"fmt"
+	"io"
 	"net/url"
 	"strings"
+
+	"github.com/cosiner/golib/sys"
 
 	. "github.com/cosiner/golib/errors"
 )
@@ -40,6 +42,8 @@ type (
 		MatchWebSocketHandler(url *url.URL) (WebSocketHandler, URLVarIndexer)
 		// MatchTaskHandler
 		MatchTaskHandler(url *url.URL) (TaskHandler, URLVarIndexer)
+
+		PrintRouteTree(w io.Writer)
 	}
 
 	// handlerProcessor keep handler and url variables of this route
@@ -89,8 +93,10 @@ var (
 )
 
 const (
+	_MATCH_WILDCARD = ':' // MUST BE:other character < _WILDCARD < _REMAINSALL
 	// _WILDCARD is the replacement of named variable in compiled path
-	_WILDCARD = '|' // MUST BE:other character < _WILDCARD < _REMAINSALL
+	_WILDCARD         = '|' // MUST BE:other character < _WILDCARD < _REMAINSALL
+	_MATCH_REMAINSALL = '*'
 	// _REMAINSALL is the replacement of catch remains all variable in compiled path
 	_REMAINSALL = '~'
 	// _PRINT_SEP is the seperator of tree level when print route tree
@@ -135,9 +141,9 @@ func compile(path string) (newPath string, names map[string]int, err error) {
 		i := last - 1
 		var c byte
 		for ; i >= 0; i-- {
-			if s[i] == ':' {
+			if s[i] == _MATCH_WILDCARD {
 				c = _WILDCARD
-			} else if s[i] == '*' {
+			} else if s[i] == _MATCH_REMAINSALL {
 				c = _REMAINSALL
 			} else {
 				continue
@@ -265,6 +271,7 @@ func (rt *router) routeProcessor() *routeProcessor {
 
 // AddFuncHandler add function handler to router for given pattern and method
 func (rt *router) AddFuncHandler(pattern, method string, handler HandlerFunc) (err error) {
+	method = parseRequestMethod(method)
 	if fHandler := _tmpGetFuncHandler(pattern); fHandler == nil {
 		fHandler = newFuncHandler()
 		fHandler.setMethodHandler(method, handler)
@@ -596,21 +603,30 @@ func (rt *router) matchOne(path string, values []string) (*router, []string) {
 
 // PrintRouteTree print an route tree
 // every level will be seperated by "-"
-func PrintRouteTree(rt Router) {
-	printRouteTree(rt.(*router), "")
+func (rt *router) PrintRouteTree(w io.Writer) {
+	rt.printRouteTree(w, "")
 }
 
 // printRouteTree print route tree with given parent path
-func printRouteTree(root *router, parentPath string) {
+func (rt *router) printRouteTree(w io.Writer, parentPath string) {
 	if parentPath != "" {
 		parentPath = parentPath + _PRINT_SEP
 	}
-	cur := parentPath + root.str
-	fmt.Println(cur)
-	root.accessAllChilds(func(n *router) bool {
-		printRouteTree(n, cur)
-		return true
-	})
+	s := []byte(rt.str)
+	for i := range s {
+		if s[i] == _WILDCARD {
+			s[i] = _MATCH_WILDCARD
+		} else if s[i] == _REMAINSALL {
+			s[i] = _MATCH_REMAINSALL
+		}
+	}
+	cur := parentPath + string(s)
+	if _, e := sys.WriteStrln(w, cur); e == nil {
+		rt.accessAllChilds(func(n *router) bool {
+			n.printRouteTree(w, cur)
+			return true
+		})
+	}
 }
 
 // accessAllChilds access all childs of node
