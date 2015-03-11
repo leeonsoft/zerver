@@ -10,7 +10,7 @@ type (
 		ScanURLVars(vars ...*string)
 		// URLVars return all values of variable
 		URLVars() []string
-		destroy()
+		destroySelf() // avoid confilict with Request interface
 	}
 
 	// urlVarIndexer is an implementation of URLVarIndexer
@@ -20,9 +20,10 @@ type (
 	}
 )
 
-func (v *urlVarIndexer) destroy() {
+func (v *urlVarIndexer) destroySelf() {
 	v.values = v.values[:0]
 	v.vars = nil
+	Pool.recycleVarIndexer(v)
 }
 
 // URLVar return values of variable

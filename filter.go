@@ -10,7 +10,8 @@ type (
 	// to modify or check request and response
 	// it will be inited on server started, destroyed on server stopped
 	Filter interface {
-		Init(*Server) error
+		// Init init root filters, it will be automic inited if it's add to server, else
+		ServerInitializer
 		Destroy()
 		Filter(Request, Response, FilterChain)
 	}
@@ -38,14 +39,23 @@ type (
 
 	// Only mmatch for url.Path = "/", others are not concerned
 	RootFilters interface {
+		ServerInitializer
 		// Filters return all root filters
 		Filters(url *url.URL) []Filter
-		// AddRootFilter add root filter for "/"
-		AddRootFilter(Filter)
+		// AddFilter add root filter for "/"
+		AddFilter(Filter)
+		AddFuncFilter(FilterFunc)
+		Destroy()
 	}
 
 	rootFilters []Filter
 )
+
+// EmptyFilterFunc is a empty filter function, it simplely continue the filter chain
+// it's useful for test, may be also other conditions
+func EmptyFilterFunc(req Request, resp Response, chain FilterChain) {
+	chain(req, resp)
+}
 
 // FilterFunc is a function Filter
 func (FilterFunc) Init(*Server) error { return nil }
@@ -59,14 +69,33 @@ func NewRootFilters() RootFilters {
 	return &rfs
 }
 
+func (rfs *rootFilters) Init(s *Server) error {
+	for _, f := range *rfs {
+		if err := f.Init(s); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Filters returl all root filters
 func (rfs *rootFilters) Filters(*url.URL) []Filter {
 	return *rfs
 }
 
-// AddRootFilter add root filter
-func (rfs *rootFilters) AddRootFilter(filter Filter) {
+// AddFilter add root filter
+func (rfs *rootFilters) AddFilter(filter Filter) {
 	*rfs = append(*rfs, filter)
+}
+
+// AddFilter add root filter
+func (rfs *rootFilters) AddFuncFilter(filter FilterFunc) {
+	rfs.AddFilter(filter)
+}
+func (rfs *rootFilters) Destroy() {
+	for _, f := range *rfs {
+		f.Destroy()
+	}
 }
 
 // NewFilterChain create a chain of filter
@@ -86,13 +115,13 @@ func NewFilterChain(filters []Filter, handler func(Request, Response)) FilterCha
 	chain := Pool.newFilterChain()
 	chain.filters = filters
 	chain.handler = handler
-	return chain.continueChain
+	return chain.handleChain
 }
 
-// continueChain call next filter, if there is no next filter,then call final handler
+// handleChain call next filter, if there is no next filter,then call final handler
 // if there is no chains, filterChain will be recycle to pool
 // if chain is not continue to last, chain will not be recycled
-func (chain *filterChain) continueChain(req Request, resp Response) {
+func (chain *filterChain) handleChain(req Request, resp Response) {
 	filters := chain.filters
 	if len(filters) == 0 {
 		if h := chain.handler; h != nil {
@@ -102,7 +131,7 @@ func (chain *filterChain) continueChain(req Request, resp Response) {
 	} else {
 		filter := filters[0]
 		chain.filters = filters[1:]
-		filter.Filter(req, resp, chain.continueChain)
+		filter.Filter(req, resp, chain.handleChain)
 	}
 }
 
@@ -114,7 +143,8 @@ func (chain *filterChain) destroy() {
 }
 
 // InterceptHandler will create a permanent HandlerFunc/FilterChain, there is no
-// states keeps, it can be used without limitation
+// states keeps, it can be used without limitation.
+//
 // InterceptHandler wrap a handler with some filters as a interceptor
 func InterceptHandler(handler func(Request, Response), filters ...Filter) func(Request, Response) {
 	if len(filters) == 0 {
@@ -125,14 +155,14 @@ func InterceptHandler(handler func(Request, Response), filters ...Filter) func(R
 
 func newInterceptHandler(handler func(Request, Response), filter Filter) func(Request, Response) {
 	if handler == nil {
-		handler = emptyHandlerFunc
+		handler = EmptyHandlerFunc
 	}
 	return (&handlerInterceptor{
 		filter:  filter,
 		handler: handler,
-	}).Handle
+	}).handle
 }
 
-func (interceptor *handlerInterceptor) Handle(req Request, resp Response) {
+func (interceptor *handlerInterceptor) handle(req Request, resp Response) {
 	interceptor.filter.Filter(req, resp, FilterChain(interceptor.handler))
 }

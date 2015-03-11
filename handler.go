@@ -12,7 +12,7 @@ type (
 	// if want to custom the relation of method and handler, just embed
 	// EmptyHandler to your Handler, then implement interface MethodIndicator
 	Handler interface {
-		Init(*Server) error
+		ServerInitializer
 		Destroy()
 		Handler(method string) HandlerFunc
 	}
@@ -47,6 +47,7 @@ type (
 		handlers map[string]HandlerFunc
 	}
 
+	// EmptyMethodHandler will return http.StatusMethodNotAllowed for all request
 	EmptyMethodHandler byte
 )
 
@@ -62,7 +63,8 @@ type (
 
 // StandardIndicateHandler normally indicate method handle function
 // each method indicate the function with same name, such as GET->Get...
-func StandardIndicateHandler(method string, handler MethodHandler) (handlerFunc HandlerFunc) {
+func StandardIndicateHandler(method string, handler MethodHandler) HandlerFunc {
+	var handlerFunc HandlerFunc
 	switch method {
 	case GET:
 		handlerFunc = handler.Get
@@ -75,10 +77,12 @@ func StandardIndicateHandler(method string, handler MethodHandler) (handlerFunc 
 	case PATCH:
 		handlerFunc = handler.Patch
 	}
-	return
+	return handlerFunc
 }
 
-func emptyHandlerFunc(Request, Response) {}
+// EmptyHandlerFunc is a empty handler function, it do nothing
+// it's useful for test, may be also other conditions
+func EmptyHandlerFunc(Request, Response) {}
 
 // newFuncHandler create a new function handler
 func newFuncHandler() *funcHandler {

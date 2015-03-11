@@ -44,8 +44,8 @@ func NewAttrContainer() AttrContainer {
 	return make(Values)
 }
 
-func NewAttrContainerWith(v map[string]interface{}) AttrContainer {
-	return Values(v)
+func NewAttrContainerWith(v Values) AttrContainer {
+	return v
 }
 
 func (v Values) IsAttrExist(key string) bool {

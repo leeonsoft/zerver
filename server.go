@@ -15,26 +15,32 @@ type (
 	Server struct {
 		Router
 		AttrContainer
-		RootFilters
-		handlerMatcher func(*url.URL) (Handler, URLVarIndexer, []Filter)
+		RootFilters RootFilters
+	}
+	// ServerInitializer is a Object which will automaticlly initialed by server if
+	// it's added to server, else it should initialed manually
+	ServerInitializer interface {
+		Init(s *Server) error
 	}
 
+	// serverGetter is a server getter
 	serverGetter interface {
 		Server() *Server
 	}
 )
 
-var disableFilter bool
-
 // NewServer create a new server
 func NewServer() *Server {
-	return NewServerWith(NewRouter(), nil)
+	return NewServerWith(nil, nil)
 }
 
 // NewServerWith create a new server with given router and root filters
 func NewServerWith(rt Router, filters RootFilters) *Server {
 	if filters == nil {
 		filters = NewRootFilters()
+	}
+	if rt == nil {
+		rt = NewRouter()
 	}
 	return &Server{
 		Router:        rt,
@@ -50,11 +56,7 @@ func (s *Server) Server() *Server {
 
 // Start start server
 func (s *Server) start() {
-	if disableFilter {
-		s.handlerMatcher = s.matchHandlerNoFilters
-	} else {
-		s.handlerMatcher = s.MatchHandlerFilters
-	}
+	OnErrPanic(s.RootFilters.Init(s))
 	log.Println("Init Handlers and Filters")
 	s.Router.Init(func(handler Handler) bool {
 		OnErrPanic(handler.Init(s))
@@ -78,6 +80,13 @@ func (s *Server) start() {
 func (s *Server) Start(listenAddr string) error {
 	s.start()
 	return http.ListenAndServe(listenAddr, s)
+}
+
+// Destroy is mainly designed to stop server, release all resources
+// but it seems ther is no approach to stop a running golang but don't exit process
+func (s *Server) Destroy() {
+	s.RootFilters.Destroy()
+	s.Router.Destroy()
 }
 
 // StartTLS start server as https server
@@ -112,44 +121,32 @@ func (s *Server) serveWebSocket(w http.ResponseWriter, request *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	} else if conn, err := websocket.UpgradeWebsocket(w, request, nil); err == nil {
 		handler.Handle(newWebSocketConn(s, conn, indexer))
-		indexer.destroy()
-		Pool.recycleVarIndexer(indexer)
+		indexer.destroySelf()
 	}
-}
-
-func (s *Server) matchHandlerNoFilters(url *url.URL) (Handler, URLVarIndexer, []Filter) {
-	handler, indexer := s.MatchHandler(url)
-	return handler, indexer, nil
 }
 
 // serveHTTP serve for http protocal
 func (s *Server) serveHTTP(w http.ResponseWriter, request *http.Request) {
 	url := request.URL
 	url.Host = request.Host
-	handler, indexer, filters := s.handlerMatcher(url)
+	handler, indexer, filters := s.MatchHandlerFilters(url)
 	requestEnv := Pool.newRequestEnv()
 	req, resp := requestEnv.req.init(s, request, indexer), requestEnv.resp.init(w)
 
-	var handlerFunc HandlerFunc
+	var chain FilterChain
 	if handler == nil {
-		// resp.setStatus(http.StatusNotFound)
-		// handlerFunc = notFoundHandler
 		resp.ReportNotFound()
-	} else if handlerFunc = handler.Handler(req.Method()); handlerFunc == nil {
-		// resp.setStatus(http.StatusMethodNotAllowed)
-		// handlerFunc = methodNotAllowedHandler
+	} else if chain = FilterChain(handler.Handler(req.Method())); chain == nil {
 		resp.ReportMethodNotAllowed()
 	}
-	chain := NewFilterChain(filters, handlerFunc)
+	chain = NewFilterChain(filters, chain)
 	if url.Path == "/" {
-		chain = NewFilterChain(s.Filters(url), chain)
+		chain = NewFilterChain(s.RootFilters.Filters(url), chain)
 	}
 	chain(req, resp)
 	req.destroy()
 	resp.destroy()
-	indexer.destroy()
 	Pool.recycleRequestEnv(requestEnv)
-	Pool.recycleVarIndexer(indexer)
 	Pool.recycleFilters(filters)
 }
 
@@ -163,13 +160,9 @@ func (s *Server) serveTask(path string, value interface{}) {
 	if handler == nil {
 		PanicServer("No task handler found for " + path)
 	}
-	handler.Handle(newTask(s, indexer, value))
-	indexer.destroy()
-	Pool.recycleVarIndexer(indexer)
-}
-
-func (s *Server) AddRootFuncFilter(filter FilterFunc) {
-	s.AddRootFilter(filter)
+	task := newTask(s, indexer, value)
+	handler.Handle(task)
+	task.destroy()
 }
 
 // Get register a function handler process GET request for given pattern

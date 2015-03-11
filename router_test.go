@@ -1,6 +1,7 @@
 package zerver
 
 import (
+	"net/url"
 	"os"
 	"testing"
 
@@ -342,9 +343,13 @@ func TestRoute(t *testing.T) {
 	t.Log(value)
 }
 
-func TestRoute2(t *testing.T) {
-	rt := new(router)
-	rt.AddHandler("/user/:id", newFuncHandler())
-	rt.AddHandler("/user/aaa", newFuncHandler())
-	t.Log(rt.matchOne("/user/aaa", nil))
+func TestFilterHideHandler(t *testing.T) {
+	tt := test.WrapTest(t)
+	rt := NewRouter()
+	rt.AddFuncFilter("/user/12:id", EmptyFilterFunc)
+	rt.AddFuncHandler("/user/:id", "GET", EmptyHandlerFunc)
+	h, _, _ := rt.MatchHandlerFilters(&url.URL{Path: "/user/1234"})
+	tt.AssertTrue(h == nil)
+	h, _, _ = rt.MatchHandlerFilters(&url.URL{Path: "/user/2234"})
+	tt.AssertTrue(h != nil)
 }

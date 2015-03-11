@@ -21,9 +21,10 @@ type (
 		Header(name string) string
 		Cookie(name string) string
 		SecureCookie(name string) string
-		Server() *Server
+		serverGetter
 		io.Reader
 		URLVarIndexer
+		destroy()
 	}
 
 	// request represent an income request
@@ -57,6 +58,7 @@ func (req *request) destroy() {
 	req.request = nil
 	req.serverGetter = nil
 	req.header = nil
+	req.URLVarIndexer.destroySelf() // who owns resource, who releases resource
 	req.URLVarIndexer = nil
 	req.params = nil
 }

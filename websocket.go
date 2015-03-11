@@ -15,7 +15,7 @@ type (
 		URLVarIndexer
 		net.Conn
 		URL() *url.URL
-		Server() *Server
+		serverGetter
 	}
 
 	// webSocketConn is the actual websocket connection
@@ -30,7 +30,7 @@ type (
 
 	// WebSocketHandler is the handler of websocket connection
 	WebSocketHandler interface {
-		Init(*Server) error
+		ServerInitializer
 		Destroy()
 		Handle(WebSocketConn)
 	}

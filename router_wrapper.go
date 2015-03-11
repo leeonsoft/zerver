@@ -24,10 +24,9 @@ type (
 	}
 )
 
-func NewHostRouter() RouterWrapper {
-	return RouterWrapper{
-		RouterStore: new(HostRouter),
-	}
+func NewHostRouter() (Router, *HostRouter) {
+	hr := new(HostRouter)
+	return RouterWrapper{RouterStore: hr}, hr
 }
 
 func (hr *HostRouter) AddRouter(host string, rt Router, rootFilters RootFilters) {
@@ -61,6 +60,15 @@ func (hr *HostRouter) Iterate(fn func(string, Router)) {
 
 // Implement RootFilters
 
+func (hr *HostRouter) Init(s *Server) error {
+	for _, f := range hr.filters {
+		if e := f.Init(s); e != nil {
+			return e
+		}
+	}
+	return nil
+}
+
 // Filters return all root filters
 func (hr *HostRouter) Filters(url *url.URL) []Filter {
 	host, hosts := url.Host, hr.hosts
@@ -75,6 +83,17 @@ func (hr *HostRouter) Filters(url *url.URL) []Filter {
 // AddRootFilter add root filter for "/"
 func (hr *HostRouter) AddRootFilter(Filter) {
 	panicOnAdd()
+}
+
+// AddRootFilter add root filter for "/"
+func (hr *HostRouter) AddRootFuncFilter(Filter) {
+	panicOnAdd()
+}
+
+func (hr *HostRouter) Destroy() {
+	for _, f := range hr.filters {
+		f.Destroy()
+	}
 }
 
 // Init init handlers and filters, websocket handlers
@@ -143,14 +162,6 @@ func (RouterWrapper) AddTaskHandler(string, TaskHandler) error {
 func (rw RouterWrapper) MatchHandlerFilters(url *url.URL) (handler Handler, indexer URLVarIndexer, filters []Filter) {
 	if router := rw.FindRouter(url); router != nil {
 		handler, indexer, filters = router.MatchHandlerFilters(url)
-	}
-	return
-}
-
-// MatchHandler match given url to find all matched filters and final handler
-func (rw RouterWrapper) MatchHandler(url *url.URL) (handler Handler, indexer URLVarIndexer) {
-	if router := rw.FindRouter(url); router != nil {
-		handler, indexer = router.MatchHandler(url)
 	}
 	return
 }

@@ -16,7 +16,6 @@ func TmpSet(key string, value interface{}) {
 
 func TmpHSet(key, key2 string, value interface{}) {
 	_tmpCheck()
-	fmt.Println("ddd")
 	vs := _tmp[key]
 	values, ok := vs.(map[string]interface{})
 	if !ok {

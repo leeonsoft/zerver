@@ -36,8 +36,6 @@ type (
 
 		// MatchHandlerFilters match given url to find all matched filters and final handler
 		MatchHandlerFilters(url *url.URL) (Handler, URLVarIndexer, []Filter)
-		// MatchHandler match given url to find all matched filters and final handler
-		MatchHandler(url *url.URL) (Handler, URLVarIndexer)
 		// MatchWebSocketHandler match given url to find a matched websocket handler
 		MatchWebSocketHandler(url *url.URL) (WebSocketHandler, URLVarIndexer)
 		// MatchTaskHandler
@@ -78,6 +76,7 @@ type (
 		chars     []byte          // all possible first characters of next route node
 		childs    []*router       // child routers
 		processor *routeProcessor // processor for current route node
+		noFilter  bool
 	}
 )
 
@@ -207,21 +206,28 @@ func (rp *routeProcessor) init(initHandler func(Handler) bool,
 func (rp *routeProcessor) destroy() {
 	if rp.handlerProcessor != nil {
 		rp.handlerProcessor.handler.Destroy()
+		rp.handlerProcessor = nil
 	}
 	for _, f := range rp.filters {
 		f.Destroy()
 	}
+	rp.filters = nil
 	if rp.wsHandlerProcessor != nil {
 		rp.wsHandlerProcessor.wsHandler.Destroy()
+		rp.wsHandlerProcessor = nil
 	}
 	if rp.taskHandlerProcessor != nil {
 		rp.taskHandlerProcessor.taskHandler.Destroy()
+		rp.taskHandlerProcessor = nil
 	}
+
 }
 
 // NewRouter create a new Router
 func NewRouter() Router {
-	return new(router)
+	rt := new(router)
+	rt.noFilter = true
+	return rt
 }
 
 // Init init all handlers, filters, websocket handlers in route tree
@@ -343,7 +349,7 @@ func (rt *router) AddFuncFilter(pattern string, filter FilterFunc) error {
 
 // AddFuncFilter add filter to router
 func (rt *router) AddFilter(pattern string, filter Filter) error {
-	disableFilter = false
+	rt.noFilter = false
 	return rt.addPattern(pattern, func(rp *routeProcessor, _ map[string]int) error {
 		rp.filters = append(rp.filters, filter)
 		return nil
@@ -363,74 +369,83 @@ func (rt *router) addPattern(pattern string, fn func(*routeProcessor, map[string
 }
 
 // MatchWebSockethandler match url to find final websocket handler
-func (rt *router) MatchWebSocketHandler(url *url.URL) (handler WebSocketHandler, indexer URLVarIndexer) {
-	indexer = rt.matchHandler(url, func(indexer *urlVarIndexer, p *routeProcessor) {
-		if wsp := p.wsHandlerProcessor; wsp != nil {
-			indexer.vars = wsp.vars
-			handler = wsp.wsHandler
-		}
-	})
-	return
-}
-
-// MatchTaskhandler match url to find final websocket handler
-func (rt *router) MatchTaskHandler(url *url.URL) (handler TaskHandler, indexer URLVarIndexer) {
-	indexer = rt.matchHandler(url, func(indexer *urlVarIndexer, p *routeProcessor) {
-		if thp := p.taskHandlerProcessor; thp != nil {
-			indexer.vars = thp.vars
-			handler = thp.taskHandler
-		}
-	})
-	return
-}
-
-// MatchHandler match url to find final websocket handler
-func (rt *router) MatchHandler(url *url.URL) (handler Handler, indexer URLVarIndexer) {
-	indexer = rt.matchHandler(url, func(indexer *urlVarIndexer, p *routeProcessor) {
-		if hp := p.handlerProcessor; hp != nil {
-			indexer.vars = hp.vars
-			handler = hp.handler
-		}
-	})
-	return
-}
-
-// matchHandler do match all types of final handler
-func (rt *router) matchHandler(url *url.URL, fn func(*urlVarIndexer, *routeProcessor)) URLVarIndexer {
+func (rt *router) MatchWebSocketHandler(url *url.URL) (WebSocketHandler, URLVarIndexer) {
 	path := url.Path
 	indexer := Pool.newVarIndexer()
 	rt, values := rt.matchOne(path, indexer.values)
 	indexer.values = values
-	if rt != nil && rt.processor != nil {
-		fn(indexer, rt.processor)
+	if rt != nil {
+		if p := rt.processor; p != nil {
+			if wsp := p.wsHandlerProcessor; wsp != nil {
+				indexer.vars = wsp.vars
+				return wsp.wsHandler, indexer
+			}
+		}
 	}
-	return indexer
+	return nil, indexer
 }
+
+// MatchTaskhandler match url to find final websocket handler
+func (rt *router) MatchTaskHandler(url *url.URL) (TaskHandler, URLVarIndexer) {
+	path := url.Path
+	indexer := Pool.newVarIndexer()
+	rt, values := rt.matchOne(path, indexer.values)
+	indexer.values = values
+	if rt != nil {
+		if p := rt.processor; p != nil {
+			if thp := p.taskHandlerProcessor; thp != nil {
+				indexer.vars = thp.vars
+				return thp.taskHandler, indexer
+			}
+		}
+	}
+	return nil, indexer
+
+}
+
+// // MatchHandler match url to find final websocket handler
+// func (rt *router) MatchHandler(url *url.URL) (handler Handler, indexer URLVarIndexer) {
+// 	path := url.Path
+// 	indexer = Pool.newVarIndexer()
+// 	rt, values := rt.matchOne(path, indexer.values)
+// 	indexer.values = values
+// 	if rt != nil && rt.processor != nil {
+// 		if hp := p.handlerProcessor; hp != nil {
+// 			indexer.vars = hp.vars
+// 			handler = hp.handler
+// 		}
+// 	}
+// 	return
+// }
 
 // MatchHandlerFilters match url to fin final handler and each filters
 func (rt *router) MatchHandlerFilters(url *url.URL) (Handler,
 	URLVarIndexer, []Filter) {
 	var (
-		pathIndex int
-		continu   = true
-		path      = url.Path
-		processor *routeProcessor
-		indexer   = Pool.newVarIndexer()
-		values    = indexer.values
-		filters   = Pool.newFilters()
+		path    = url.Path
+		p       *routeProcessor
+		indexer = Pool.newVarIndexer()
+		values  = indexer.values
+		filters []Filter
 	)
-	for continu {
-		if processor = rt.processor; processor != nil {
-			if pfs := processor.filters; len(pfs) != 0 {
-				filters = append(filters, pfs...)
+	if rt.noFilter {
+		rt, values = rt.matchOne(path, indexer.values)
+	} else {
+		filters = Pool.newFilters()
+		pathIndex, continu := 0, true
+		for continu {
+			if p = rt.processor; p != nil {
+				if pfs := p.filters; len(pfs) != 0 {
+					filters = append(filters, pfs...)
+				}
 			}
+			pathIndex, values, rt, continu = rt.matchMultiple(path, pathIndex, values)
 		}
-		pathIndex, values, rt, continu = rt.matchMultiple(path, pathIndex, values)
 	}
 	indexer.values = values
 	if rt != nil {
-		if processor = rt.processor; processor != nil {
-			if hp := processor.handlerProcessor; hp != nil {
+		if p = rt.processor; p != nil {
+			if hp := p.handlerProcessor; hp != nil {
 				indexer.vars = hp.vars
 				return hp.handler, indexer, filters
 			}

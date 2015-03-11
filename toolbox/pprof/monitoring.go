@@ -19,7 +19,7 @@ import (
 
 var path = "/status"
 
-func EnableMonitoring(p string, rt zerver.Router, rootFilters zerver.RootFilters) {
+func EnableMonitoring(p string, rt zerver.Router, rootFilters zerver.RootFilters) (err error) {
 	if p != "" {
 		path = p
 	}
@@ -27,14 +27,29 @@ func EnableMonitoring(p string, rt zerver.Router, rootFilters zerver.RootFilters
 		return
 	}
 	for subpath, handler := range routes {
-		rt.AddFuncHandler(path+subpath, "GET", handler)
+		if err = rt.AddFuncHandler(path+subpath, "GET", handler); err != nil {
+			return
+		}
 		options = append(options, "GET "+path+subpath+": "+infos[subpath]+"\n")
 	}
 	if rootFilters == nil {
-		rt.AddFuncFilter(path, globalFilter)
+		err = rt.AddFuncFilter(path, globalFilter)
 	} else {
-		rootFilters.AddRootFilter(zerver.FilterFunc(globalFilter))
+		rootFilters.AddFuncFilter(globalFilter)
 	}
+	return
+}
+
+func NewMonitorServer(p string) (*zerver.Server, error) {
+	if p == "" {
+		p = "/"
+	}
+	s := zerver.NewServer()
+	s.AddFuncHandler("/stop", "GET", func(req zerver.Request, resp zerver.Response) {
+		req.Server().Destroy()
+	})
+	infos["/stop"] = "stop pprof server"
+	return s, EnableMonitoring("/", s, s.RootFilters)
 }
 
 func AddMonitorHandler(info, path string, handler zerver.HandlerFunc) {

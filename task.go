@@ -6,12 +6,13 @@ type (
 		URLVarIndexer
 		Value() interface{}
 		serverGetter
+		destroy()
 	}
 
 	TaskHandlerFunc func(Task)
 
 	TaskHandler interface {
-		Init(*Server) error
+		ServerInitializer
 		Destroy()
 		Handle(Task)
 	}
@@ -29,6 +30,10 @@ func newTask(s serverGetter, indexer URLVarIndexer, value interface{}) Task {
 		URLVarIndexer: indexer,
 		value:         value,
 	}
+}
+
+func (t *task) destroy() {
+	t.URLVarIndexer.destroySelf()
 }
 
 func (t *task) Value() interface{} {
