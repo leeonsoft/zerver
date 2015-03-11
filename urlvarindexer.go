@@ -1,4 +1,4 @@
-package zerver_rest
+package zerver
 
 type (
 	// URLVarIndexer is a indexer for name to value

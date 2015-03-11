@@ -5,7 +5,7 @@ import (
 	"compress/gzip"
 	"strings"
 
-	zerver "github.com/cosiner/zerver_rest"
+	"github.com/cosiner/zerver"
 )
 
 type gzipResponse struct {

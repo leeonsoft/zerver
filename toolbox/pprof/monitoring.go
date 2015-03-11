@@ -1,7 +1,10 @@
+// Package pprof provide a simple monitoring interface for zerver, all monitor is
+// handled GET request
+// use AddMonitorHandler to add a monitor, it should be called before EnableMonitoring
+// for there is only one change to init
 package pprof
 
 import (
-	"log"
 	"net/http"
 	"net/url"
 	"runtime"
@@ -9,26 +12,33 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/cosiner/zerver_rest/toolbox/filters"
-
 	"github.com/cosiner/golib/sys"
 	"github.com/cosiner/golib/types"
-	zerver "github.com/cosiner/zerver_rest"
+	"github.com/cosiner/zerver"
 )
 
 var path = "/status"
 
-func EnableMonitoring(p string, rt zerver.Router) {
+func EnableMonitoring(p string, rt zerver.Router, rootFilters zerver.RootFilters) {
 	if p != "" {
 		path = p
 	}
-	initRoutes()
+	if !initRoutes() {
+		return
+	}
 	for subpath, handler := range routes {
 		rt.AddFuncHandler(path+subpath, "GET", handler)
 		options = append(options, "GET "+path+subpath+": "+infos[subpath]+"\n")
 	}
-	rt.AddFilter(path, filters.NewLogFilter(log.Println))
-	rt.AddFuncFilter(path, globalFilter)
+	if rootFilters == nil {
+		rt.AddFuncFilter(path, globalFilter)
+	} else {
+		rootFilters.AddRootFilter(zerver.FilterFunc(globalFilter))
+	}
+}
+
+func AddMonitorHandler(info, path string, handler zerver.HandlerFunc) {
+	infos[path], routes[path] = info, handler
 }
 
 var options = make([]string, 0, len(infos)+1)
@@ -53,7 +63,14 @@ func globalFilter(req zerver.Request, resp zerver.Response, chain zerver.FilterC
 	}
 }
 
-func initRoutes() {
+var inited bool
+
+func initRoutes() bool {
+	if inited {
+		return false
+	}
+	inited = true
+
 	infos["/goroutine"] = "Get goroutine info"
 	routes["/goroutine"] = pprofLookupHandler("goroutine")
 	infos["/heap"] = "Get heap info"
@@ -93,6 +110,7 @@ func initRoutes() {
 		req.Server().PrintRouteTree(resp)
 	}
 
+	infos["/statistic"] = "Get server statistic info such as uptime"
 	infos["/options"] = "Get all pprof options"
 	routes["/options"] = func(req zerver.Request, resp zerver.Response) {
 		if from := req.Param("from"); from != "" {
@@ -102,4 +120,6 @@ func initRoutes() {
 			resp.Write(types.UnsafeBytes(options[i]))
 		}
 	}
+
+	return inited
 }

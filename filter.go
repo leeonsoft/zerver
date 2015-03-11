@@ -1,4 +1,4 @@
-package zerver_rest
+package zerver
 
 import "net/url"
 

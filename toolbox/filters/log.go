@@ -1,7 +1,7 @@
 package filters
 
 import (
-	zerver "github.com/cosiner/zerver_rest"
+	"github.com/cosiner/zerver"
 )
 
 var logger func(v ...interface{})

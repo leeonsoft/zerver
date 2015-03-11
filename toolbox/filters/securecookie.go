@@ -2,7 +2,7 @@ package filters
 
 import (
 	"github.com/cosiner/golib/crypto"
-	zerver "github.com/cosiner/zerver_rest"
+	"github.com/cosiner/zerver"
 )
 
 var secretKey []byte

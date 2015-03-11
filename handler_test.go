@@ -1,4 +1,4 @@
-package zerver_rest
+package zerver
 
 var methods = []string{GET, POST, PUT, DELETE, PATCH}
 

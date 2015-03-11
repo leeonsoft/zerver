@@ -3,7 +3,7 @@ package filters
 import (
 	"net/http"
 
-	zerver "github.com/cosiner/zerver_rest"
+	"github.com/cosiner/zerver"
 )
 
 type (
