@@ -28,25 +28,32 @@ func (v *urlVarIndexer) destroySelf() {
 
 // URLVar return values of variable
 func (v *urlVarIndexer) URLVar(name string) string {
-	if index, has := v.vars[name]; has {
-		return v.values[index]
+	if len(v.vars) > 0 {
+		if index, has := v.vars[name]; has {
+			return v.values[index]
+		}
 	}
 	return ""
 }
 
 // URLVars return all values of variable
 func (v *urlVarIndexer) URLVars() []string {
-	return v.values
+	if len(v.vars) > 0 {
+		return v.values
+	}
+	return nil
 }
 
 // ScanURLVars scan values into variable addresses
 // if address is nil, skip it
 func (v *urlVarIndexer) ScanURLVars(vars ...*string) {
-	values := v.values
-	l1, l2 := len(values), len(vars)
-	for i := 0; i < l1 && i < l2; i++ {
-		if vars[i] != nil {
-			*vars[i] = values[i]
+	if len(v.vars) > 0 {
+		values := v.values
+		l1, l2 := len(values), len(vars)
+		for i := 0; i < l1 && i < l2; i++ {
+			if vars[i] != nil {
+				*vars[i] = values[i]
+			}
 		}
 	}
 }

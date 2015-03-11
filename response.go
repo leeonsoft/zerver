@@ -32,6 +32,11 @@ type (
 		CacheUntil(*time.Time)
 		NoCache()
 		destroy()
+		// Value/SetValue provide a approach to transmit value between filter/handler
+		// there is only one instance, if necessary first save origin value, after
+		// operation, restore it
+		Value() interface{}
+		SetValue(interface{})
 	}
 
 	// response represent a response of request to user
@@ -40,6 +45,7 @@ type (
 		header       http.Header
 		status       int
 		statusWrited bool
+		value        interface{}
 	}
 )
 
@@ -146,4 +152,12 @@ func (resp *response) SetSecureCookie(name, value string, lifetime int) {
 // DeleteClientCookie delete user briwser's cookie by name
 func (resp *response) DeleteClientCookie(name string) {
 	resp.SetCookie(name, "", -1)
+}
+
+func (resp *response) Value() interface{} {
+	return resp.value
+}
+
+func (resp *response) SetValue(v interface{}) {
+	resp.value = v
 }

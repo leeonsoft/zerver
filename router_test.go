@@ -283,7 +283,7 @@ func rt() *router {
 	node.addPath("/user/keys", fn)
 	node.addPath("/user/keys/|", fn)
 	node.addPath("/user/keys", fn)
-	node.addPath("/user/keys/|", fn)
+	// node.addPath("/user/keys/|", fn)
 	node.addPath("/user/keys/|", fn)
 	// PrintRouteTree(node)
 	return node
@@ -295,7 +295,7 @@ func BenchmarkMatchRouteOne(b *testing.B) {
 	// tt := test.WrapTest(b)
 	// path := "/legacy/issues/search/aaa/bbb/ccc/ddd"
 	// path := "/user/repos"
-	path := "/repos/julienschmidt/httprouter/stargazers"
+	path := "/user/keys"
 	// path := "/user/aa/exist"
 	for i := 0; i < b.N; i++ {
 		// pathIndex := 0
