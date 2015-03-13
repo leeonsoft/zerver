@@ -88,7 +88,7 @@ var (
 	// all path variable values
 	// to get best performance, it should commonly set to the average, default, it's 2
 	PathVarCount = 2
-	FilterCount  = 0
+	FilterCount  = 2
 )
 
 const (

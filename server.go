@@ -136,12 +136,12 @@ func (s *Server) serveHTTP(w http.ResponseWriter, request *http.Request) {
 	var chain FilterChain
 	if handler == nil {
 		resp.ReportNotFound()
-	} else if chain = FilterChain(handler.Handler(req.Method())); chain == nil {
+	} else if chain = FilterChain(IndicateHandler(req.Method(), handler)); chain == nil {
 		resp.ReportMethodNotAllowed()
 	}
-	chain = NewFilterChain(filters, chain)
+	chain = newFilterChain(filters, chain)
 	if url.Path == "/" {
-		chain = NewFilterChain(s.RootFilters.Filters(url), chain)
+		chain = newFilterChain(s.RootFilters.Filters(url), chain)
 	}
 	chain(req, resp)
 	req.destroy()

@@ -293,9 +293,9 @@ var r = rt()
 
 func BenchmarkMatchRouteOne(b *testing.B) {
 	// tt := test.WrapTest(b)
-	// path := "/legacy/issues/search/aaa/bbb/ccc/ddd"
+	path := "/repos/julienschmidt/httprouter/stargazers"
 	// path := "/user/repos"
-	path := "/user/keys"
+	// path := "/user/keys"
 	// path := "/user/aa/exist"
 	for i := 0; i < b.N; i++ {
 		// pathIndex := 0

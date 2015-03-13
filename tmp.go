@@ -3,7 +3,7 @@ package zerver
 import (
 	"fmt"
 
-	"github.com/cosiner/golib/types"
+	"github.com/cosiner/golib/runtime"
 )
 
 // Tmp* provide a temporary data store, it should not be used after server start
@@ -49,6 +49,6 @@ func tmpDestroy() {
 
 func _tmpCheck() {
 	if _tmp == nil {
-		panic(fmt.Sprintf("Temporary data store has been destroyed: %s", types.CallerPosition(2)))
+		panic(fmt.Sprintf("Temporary data store has been destroyed: %s", runtime.CallerPosition(2)))
 	}
 }

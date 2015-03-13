@@ -14,10 +14,6 @@ type (
 	Handler interface {
 		ServerInitializer
 		Destroy()
-		Handler(method string) HandlerFunc
-	}
-
-	MethodHandler interface {
 		Get(Request, Response)    // query
 		Post(Request, Response)   // add
 		Delete(Request, Response) // delete
@@ -25,16 +21,16 @@ type (
 		Patch(Request, Response)  // update
 	}
 
-	// // MethodIndicator is an interface for user handler to
-	// // custom method handle functions
-	// MethodIndicator interface {
-	// 	// Handler return an method handle function by method name
-	// 	// if nill returned, means access forbidden
-	// 	Handler(method string) HandlerFunc
-	// }
+	// MethodIndicator is an interface for user handler to
+	// custom method handle functions
+	MethodIndicator interface {
+		// Handler return an method handle function by method name
+		// if nill returned, means access forbidden
+		Handler(method string) HandlerFunc
+	}
 
-	// // EmptyHandler is an empty handler for user to embed
-	// EmptyHandler struct{}
+	// EmptyHandler is an empty handler for user to embed
+	EmptyHandler struct{}
 
 	// funcHandler is a handler that use user customed handler function
 	// it a funcHandler is defined after a normal handler with same pattern,
@@ -43,27 +39,24 @@ type (
 	// funcHandler, and if other method handler like Post, Put is not set,
 	// user access of these method is forbiddened
 	funcHandler struct {
-		// EmptyHandler
+		EmptyHandler
 		handlers map[string]HandlerFunc
 	}
-
-	// EmptyMethodHandler will return http.StatusMethodNotAllowed for all request
-	EmptyMethodHandler byte
 )
 
-// // IndicateHandler indicate handler function from a handler and method
-// func IndicateHandler(method string, handler Handler) HandlerFunc {
-// 	switch handler := handler.(type) {
-// 	case MethodIndicator:
-// 		return handler.Handler(method)
-// 	default:
-// 		return standardIndicate(method, handler)
-// 	}
-// }
+// IndicateHandler indicate handler function from a handler and method
+func IndicateHandler(method string, handler Handler) HandlerFunc {
+	switch handler := handler.(type) {
+	case MethodIndicator:
+		return handler.Handler(method)
+	default:
+		return standardIndicate(method, handler)
+	}
+}
 
-// StandardIndicateHandler normally indicate method handle function
+// standardIndicate normally indicate method handle function
 // each method indicate the function with same name, such as GET->Get...
-func StandardIndicateHandler(method string, handler MethodHandler) HandlerFunc {
+func standardIndicate(method string, handler Handler) HandlerFunc {
 	var handlerFunc HandlerFunc
 	switch method {
 	case GET:
@@ -91,33 +84,32 @@ func newFuncHandler() *funcHandler {
 	}
 }
 
-func (fh *funcHandler) Init(*Server) error { return nil }
-
 // funcHandler implements MethodIndicator interface for custom method handler
 func (fh *funcHandler) Handler(method string) (handlerFunc HandlerFunc) {
 	return fh.handlers[method]
 }
-
-func (fh *funcHandler) Destroy() {}
 
 // setMethodHandler setup method handler for funcHandler
 func (fh *funcHandler) setMethodHandler(method string, handlerFunc HandlerFunc) {
 	fh.handlers[method] = handlerFunc
 }
 
+func (EmptyHandler) Init(*Server) error { return nil }
+
 // EmptyHandler methods
-func (EmptyMethodHandler) Get(_ Request, resp Response) {
+func (EmptyHandler) Get(_ Request, resp Response) {
 	resp.ReportStatus(http.StatusMethodNotAllowed)
 }
-func (EmptyMethodHandler) Post(_ Request, resp Response) {
+func (EmptyHandler) Post(_ Request, resp Response) {
 	resp.ReportStatus(http.StatusMethodNotAllowed)
 }
-func (EmptyMethodHandler) Delete(_ Request, resp Response) {
+func (EmptyHandler) Delete(_ Request, resp Response) {
 	resp.ReportStatus(http.StatusMethodNotAllowed)
 }
-func (EmptyMethodHandler) Put(_ Request, resp Response) {
+func (EmptyHandler) Put(_ Request, resp Response) {
 	resp.ReportStatus(http.StatusMethodNotAllowed)
 }
-func (EmptyMethodHandler) Patch(_ Request, resp Response) {
+func (EmptyHandler) Patch(_ Request, resp Response) {
 	resp.ReportStatus(http.StatusMethodNotAllowed)
 }
+func (EmptyHandler) Destroy() {}

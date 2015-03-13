@@ -98,7 +98,7 @@ func (rfs *rootFilters) Destroy() {
 	}
 }
 
-// NewFilterChain create a chain of filter
+// newFilterChain create a chain of filter
 // this method is setup to public for which condition there only one route
 // need filter, if add to global router, it will make router match slower
 // this method can help for these condition
@@ -106,7 +106,7 @@ func (rfs *rootFilters) Destroy() {
 // NOTICE: FilterChain keeps some states, it should be use only once
 // if need unlimit FilterChain, use InterceptHandler replace
 // but it takes less memory space, InterceptHandler takes more, make your choice
-func NewFilterChain(filters []Filter, handler func(Request, Response)) FilterChain {
+func newFilterChain(filters []Filter, handler func(Request, Response)) FilterChain {
 	if l := len(filters); l == 0 {
 		return handler
 	} else if l == 1 {
