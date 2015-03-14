@@ -305,7 +305,7 @@ func BenchmarkMatchRouteOne(b *testing.B) {
 		// for continu {
 		// 	pathIndex, vars, n, continu = n.matchMulti(path, pathIndex, vars)
 		// }
-		_, _ = r.matchOne(path, nil)
+		_, _ = r.matchOne(path, make([]string, 0, 2))
 	}
 }
 
@@ -317,7 +317,7 @@ func BenchmarkMatchRouteMultiple(b *testing.B) {
 	// path := "/user/aa/exist"
 	for i := 0; i < b.N; i++ {
 		pathIndex := 0
-		var vars []string
+		var vars []string = make([]string, 0, 2)
 		var continu = true
 		n := r
 		for continu {

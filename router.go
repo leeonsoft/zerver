@@ -220,7 +220,6 @@ func (rp *routeProcessor) destroy() {
 		rp.taskHandlerProcessor.taskHandler.Destroy()
 		rp.taskHandlerProcessor = nil
 	}
-
 }
 
 // NewRouter create a new Router
@@ -592,8 +591,7 @@ func (rt *router) matchOne(path string, values []string) (*router, []string) {
 					values = append(values, path[start:pathIndex])
 				case _REMAINSALL: // parse end, full matched
 					values = append(values, path[pathIndex:pathLen])
-					pathIndex = pathLen
-					strIndex = strLen
+					return rt, values
 				default:
 					return nil, nil // not matched
 				}

@@ -1,8 +1,8 @@
 package zerver
 
 import (
-	"net"
-	"net/url"
+	"io"
+	"time"
 
 	websocket "github.com/cosiner/zerver_websocket"
 )
@@ -13,8 +13,11 @@ type (
 	// it's handler's responsibility to close connection
 	WebSocketConn interface {
 		URLVarIndexer
-		net.Conn
-		URL() *url.URL
+		io.ReadWriteCloser
+		SetDeadline(t time.Time) error
+		SetReadDeadline(t time.Time) error
+		SetWriteDeadline(t time.Time) error
+		RemoteAddr() string
 		serverGetter
 	}
 
@@ -46,9 +49,8 @@ func newWebSocketConn(s serverGetter, conn *websocket.Conn, varIndexer URLVarInd
 	}
 }
 
-// URL return client side url
-func (wsc *webSocketConn) URL() *url.URL {
-	return wsc.Config().Origin
+func (wsc *webSocketConn) RemoteAddr() string {
+	return wsc.Request().RemoteAddr
 }
 
 // WebSocketHandlerFunc is a function WebSocketHandler

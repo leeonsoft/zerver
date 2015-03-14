@@ -7,40 +7,34 @@ import (
 )
 
 type requestEnv struct {
-	req  *request
-	resp *response
+	req  request
+	resp response
 }
 
 type ServerPool struct {
-	requestEnvPool  *sync.Pool
-	varIndexerPool  *sync.Pool
-	filtersPool     *sync.Pool
-	filterChainPool *sync.Pool
+	requestEnvPool  sync.Pool
+	varIndexerPool  sync.Pool
+	filtersPool     sync.Pool
+	filterChainPool sync.Pool
 	otherPools      map[string]*sync.Pool
 }
 
-var Pool *ServerPool = &ServerPool{
-	requestEnvPool: &sync.Pool{
-		New: func() interface{} {
-			return &requestEnv{new(request), new(response)}
-		},
-	},
-	varIndexerPool: &sync.Pool{
-		New: func() interface{} {
-			return &urlVarIndexer{values: make([]string, 0, PathVarCount)}
-		},
-	},
-	filtersPool: &sync.Pool{
-		New: func() interface{} {
-			return make([]Filter, 0, FilterCount)
-		},
-	},
-	filterChainPool: &sync.Pool{
-		New: func() interface{} {
-			return new(filterChain)
-		},
-	},
-	otherPools: make(map[string]*sync.Pool),
+var Pool *ServerPool
+
+func init() {
+	Pool = &ServerPool{otherPools: make(map[string]*sync.Pool)}
+	Pool.requestEnvPool.New = func() interface{} {
+		return &requestEnv{}
+	}
+	Pool.varIndexerPool.New = func() interface{} {
+		return &urlVarIndexer{values: make([]string, 0, PathVarCount)}
+	}
+	Pool.filtersPool.New = func() interface{} {
+		return make([]Filter, 0, FilterCount)
+	}
+	Pool.filterChainPool.New = func() interface{} {
+		return new(filterChain)
+	}
 }
 
 func (pool *ServerPool) ReigisterPool(name string, newFunc func() interface{}) error {

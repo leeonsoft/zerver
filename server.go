@@ -16,7 +16,13 @@ type (
 		Router
 		AttrContainer
 		RootFilters RootFilters
+		checker     websocket.HeaderChecker
 	}
+
+	// HeaderChecker is a http header checker, it accept a function which can get
+	// any httper's value, it there is something wrong, throw an error
+	HeaderChecker func(header func(string) string) error
+
 	// ServerInitializer is a Object which will automaticlly initialed by server if
 	// it's added to server, else it should initialed manually
 	ServerInitializer interface {
@@ -114,12 +120,17 @@ func (s *Server) StartTask(async bool, path string, value interface{}) {
 	}
 }
 
+// SetWebSocketHeaderChecker accept a checker function, checker can get an
+func (s *Server) SetWebSocketHeaderChecker(checker HeaderChecker) {
+	s.checker.Checker = checker
+}
+
 // serveWebSocket serve for websocket protocal
 func (s *Server) serveWebSocket(w http.ResponseWriter, request *http.Request) {
 	handler, indexer := s.MatchWebSocketHandler(request.URL)
 	if handler == nil {
 		w.WriteHeader(http.StatusNotFound)
-	} else if conn, err := websocket.UpgradeWebsocket(w, request, nil); err == nil {
+	} else if conn, err := websocket.UpgradeWebsocket(w, request, s.checker.HandshakeCheck); err == nil {
 		handler.Handle(newWebSocketConn(s, conn, indexer))
 		indexer.destroySelf()
 	}
