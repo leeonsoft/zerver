@@ -64,8 +64,12 @@ func (fn FilterFunc) Filter(req Request, resp Response, chain FilterChain) {
 	fn(req, resp, chain)
 }
 
-func NewRootFilters() RootFilters {
-	rfs := make(rootFilters, 0)
+func NewRootFilters(filters []Filter) RootFilters {
+	var rfs = rootFilters(filters)
+	if filters == nil {
+		rfs = make(rootFilters, 0)
+		return &rfs
+	}
 	return &rfs
 }
 

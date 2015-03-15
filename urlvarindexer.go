@@ -1,15 +1,20 @@
 package zerver
 
+import (
+	"reflect"
+
+	. "github.com/cosiner/golib/errors"
+
+	"github.com/cosiner/golib/types"
+)
+
 type (
 	// URLVarIndexer is a indexer for name to value
 	URLVarIndexer interface {
 		// URLVar return value of variable
 		URLVar(name string) string
-		// ScanURLVars scan given values into variable addresses
-		// if address is nil, skip it
-		ScanURLVars(vars ...*string)
-		// URLVars return all values of variable
-		URLVars() []string
+		URLVarDef(name string, defvalue string) string
+		ScanURLVar(name string, addr interface{}) error
 		destroySelf() // avoid confilict with Request interface
 	}
 
@@ -28,32 +33,26 @@ func (v *urlVarIndexer) destroySelf() {
 
 // URLVar return values of variable
 func (v *urlVarIndexer) URLVar(name string) string {
-	if len(v.vars) > 0 {
-		if index, has := v.vars[name]; has {
-			return v.values[index]
-		}
+	if index, has := v.vars[name]; has {
+		return v.values[index]
 	}
 	return ""
 }
 
-// URLVars return all values of variable
-func (v *urlVarIndexer) URLVars() []string {
-	if len(v.vars) > 0 {
-		return v.values
+// URLVar return values of variable
+func (v *urlVarIndexer) URLVarDef(name string, defvalue string) string {
+	if index, has := v.vars[name]; has {
+		return v.values[index]
+	} else {
+		return defvalue
 	}
-	return nil
 }
 
 // ScanURLVars scan values into variable addresses
 // if address is nil, skip it
-func (v *urlVarIndexer) ScanURLVars(vars ...*string) {
-	if len(v.vars) > 0 {
-		values := v.values
-		l1, l2 := len(values), len(vars)
-		for i := 0; i < l1 && i < l2; i++ {
-			if vars[i] != nil {
-				*vars[i] = values[i]
-			}
-		}
+func (v *urlVarIndexer) ScanURLVar(name string, addr interface{}) error {
+	if index, has := v.vars[name]; has {
+		return types.UnmarshalPrimitive(v.values[index], reflect.ValueOf(addr))
 	}
+	return Err("No this variable: " + name)
 }

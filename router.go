@@ -12,15 +12,24 @@ import (
 
 type (
 	Router interface {
+		RouteStore
+		RouteMatcher
+	}
+
+	RouteStore interface {
+		MethodRouter
+
 		// Init init handlers and filters, websocket handlers
 		Init(func(Handler) bool, func(Filter) bool, func(WebSocketHandler) bool, func(TaskHandler) bool)
 		// Destroy destroy router, also responsible for destroy all handlers and filters
 		Destroy()
-
+		PrintRouteTree(w io.Writer)
 		// AddFuncHandler add a function handler, method are defined as constant string
 		AddFuncHandler(pattern string, method string, handler HandlerFunc) error
 		// AddHandler add a handler
 		AddHandler(pattern string, handler Handler) error
+
+		AddOptionHandler(pattern string, o *OptionHandler) error
 		// AddFuncFilter add function filter
 		AddFuncFilter(pattern string, filter FilterFunc) error
 		// AddFilter add a filter
@@ -33,15 +42,23 @@ type (
 		AddFuncTaskHandler(pattern string, handler TaskHandlerFunc) error
 		// AddTaskHandler
 		AddTaskHandler(pattern string, handler TaskHandler) error
+	}
 
+	RouteMatcher interface {
 		// MatchHandlerFilters match given url to find all matched filters and final handler
 		MatchHandlerFilters(url *url.URL) (Handler, URLVarIndexer, []Filter)
 		// MatchWebSocketHandler match given url to find a matched websocket handler
 		MatchWebSocketHandler(url *url.URL) (WebSocketHandler, URLVarIndexer)
 		// MatchTaskHandler
 		MatchTaskHandler(url *url.URL) (TaskHandler, URLVarIndexer)
+	}
 
-		PrintRouteTree(w io.Writer)
+	MethodRouter interface {
+		Get(string, HandlerFunc) error
+		Post(string, HandlerFunc) error
+		Put(string, HandlerFunc) error
+		Delete(string, HandlerFunc) error
+		Patch(string, HandlerFunc) error
 	}
 
 	// handlerProcessor keep handler and url variables of this route
@@ -90,93 +107,6 @@ var (
 	PathVarCount = 2
 	FilterCount  = 2
 )
-
-const (
-	_MATCH_WILDCARD = ':' // MUST BE:other character < _WILDCARD < _REMAINSALL
-	// _WILDCARD is the replacement of named variable in compiled path
-	_WILDCARD         = '|' // MUST BE:other character < _WILDCARD < _REMAINSALL
-	_MATCH_REMAINSALL = '*'
-	// _REMAINSALL is the replacement of catch remains all variable in compiled path
-	_REMAINSALL = '~'
-	// _PRINT_SEP is the seperator of tree level when print route tree
-	_PRINT_SEP = "-"
-)
-
-// pathSections divide path by '/', trim end '/'and the first '/'
-func pathSections(path string) []string {
-	if l := len(path); l > 0 {
-		if l != 1 && path[l-1] == '/' {
-			l = l - 1
-		}
-		path = path[1:l] // trim first and last '/'
-	}
-	return strings.Split(path, "/")
-}
-
-// isInvalidSection check whether section has the predefined _WILDCARD and match
-// all character
-func isInvalidSection(s string) bool {
-	for _, c := range s {
-		if bc := byte(c); bc >= _WILDCARD {
-			return true
-		}
-	}
-	return false
-}
-
-// compile compile a url path to a clean path that replace all named variable
-// to _WILDCARD or _REMAINSALL and extract all variable names
-// if just want to match and don't need variable value, only use ':' or '*'
-// for ':', it will catch the single section of url path seperated by '/'
-// for '*', it will catch all remains url path, it should appear in the last
-// of pattern for variables behind it will all be ignored
-func compile(path string) (newPath string, names map[string]int, err error) {
-	new := make([]byte, 0, len(newPath))
-	sections := pathSections(path)
-	nameIndex := 0
-	for _, s := range sections {
-		new = append(new, '/')
-		last := len(s)
-		i := last - 1
-		var c byte
-		for ; i >= 0; i-- {
-			if s[i] == _MATCH_WILDCARD {
-				c = _WILDCARD
-			} else if s[i] == _MATCH_REMAINSALL {
-				c = _REMAINSALL
-			} else {
-				continue
-			}
-			if name := s[i+1:]; len(name) > 0 {
-				if isInvalidSection(name) {
-					goto ERROR
-				}
-				if names == nil {
-					names = make(map[string]int)
-				}
-				names[name] = nameIndex
-			}
-			nameIndex++
-			last = i
-			break
-		}
-		if last != 0 {
-			new = append(new, []byte(s[:last])...)
-		}
-		if c != 0 {
-			new = append(new, c)
-		}
-	}
-	newPath = string(new)
-	if names == nil {
-		names = nilVars
-	}
-	return
-ERROR:
-	return "", nil,
-		Errorf("path %s has pre-defined characters %c or %c",
-			path, _WILDCARD, _REMAINSALL)
-}
 
 // init init handler and filters hold by routeProcessor
 func (rp *routeProcessor) init(initHandler func(Handler) bool,
@@ -274,6 +204,31 @@ func (rt *router) routeProcessor() *routeProcessor {
 	return rt.processor
 }
 
+// Get register a function handler process GET request for given pattern
+func (rt *router) Get(pattern string, handlerFunc HandlerFunc) error {
+	return rt.AddFuncHandler(pattern, GET, handlerFunc)
+}
+
+// Post register a function handler process POST request for given pattern
+func (rt *router) Post(pattern string, handlerFunc HandlerFunc) error {
+	return rt.AddFuncHandler(pattern, POST, handlerFunc)
+}
+
+// Put register a function handler process PUT request for given pattern
+func (rt *router) Put(pattern string, handlerFunc HandlerFunc) error {
+	return rt.AddFuncHandler(pattern, PUT, handlerFunc)
+}
+
+// Delete register a function handler process DELETE request for given pattern
+func (rt *router) Delete(pattern string, handlerFunc HandlerFunc) error {
+	return rt.AddFuncHandler(pattern, DELETE, handlerFunc)
+}
+
+// Patch register a function handler process PATCH request for given pattern
+func (rt *router) Patch(pattern string, handlerFunc HandlerFunc) error {
+	return rt.AddFuncHandler(pattern, PATCH, handlerFunc)
+}
+
 // AddFuncHandler add function handler to router for given pattern and method
 func (rt *router) AddFuncHandler(pattern, method string, handler HandlerFunc) (err error) {
 	method = parseRequestMethod(method)
@@ -301,6 +256,10 @@ func (rt *router) AddHandler(pattern string, handler Handler) error {
 		}
 		return nil
 	})
+}
+
+func (rt *router) AddOptionHandler(pattern string, o *OptionHandler) error {
+	return rt.AddHandler(pattern, newFuncHandlerFrom(o))
 }
 
 // AddFuncWebSocketHandler add funciton websocket handler to router for given pattern
@@ -355,14 +314,21 @@ func (rt *router) AddFilter(pattern string, filter Filter) error {
 	})
 }
 
+var conflictPathVar = Err("There is a similar route pattern which use same wildcard" +
+	" or catchall at the same position, " +
+	"this means one of them will nerver be matched, " +
+	"please check your routes")
+
 // addPattern compile pattern, extract all variables, and add it to route tree
 // setup by given function
 func (rt *router) addPattern(pattern string, fn func(*routeProcessor, map[string]int) error) error {
 	routePath, pathVars, err := compile(pattern)
 	if err == nil {
-		rt.addPath(routePath, func(n *router) {
-			err = fn(n.routeProcessor(), pathVars)
-		})
+		if r, success := rt.addPath(routePath); success {
+			err = fn(r.routeProcessor(), pathVars)
+		} else {
+			err = conflictPathVar
+		}
 	}
 	return err
 }
@@ -455,7 +421,7 @@ func (rt *router) MatchHandlerFilters(url *url.URL) (Handler,
 
 // addPath add an new path to route, use given function to operate the final
 // route node for this path
-func (rt *router) addPath(path string, fn func(*router)) {
+func (rt *router) addPath(path string) (*router, bool) {
 	str := rt.str
 	if str == "" {
 		rt.str = path
@@ -469,21 +435,22 @@ func (rt *router) addPath(path string, fn func(*router)) {
 			if diff == strLen {
 				for i, c := range rt.chars {
 					if c == first {
-						rt.childs[i].addPath(path[diff:], fn)
-						return
+						return rt.childs[i].addPath(path[diff:])
 					}
 				}
 			} else { // diff < strLen
 				rt.moveAllToChild(str[diff:], str[:diff])
 			}
 			newNode := &router{str: path[diff:]}
-			rt.addChild(first, newNode)
+			if !rt.addChild(first, newNode) {
+				return nil, false
+			}
 			rt = newNode
 		} else if diff < strLen {
 			rt.moveAllToChild(str[diff:], path)
 		}
 	}
-	fn(rt)
+	return rt, true
 }
 
 // moveAllToChild move all attributes to a new node, and make this new node
@@ -501,9 +468,12 @@ func (rt *router) moveAllToChild(childStr string, newStr string) {
 }
 
 // addChild add an child, all childs is sorted
-func (rt *router) addChild(b byte, n *router) {
+func (rt *router) addChild(b byte, n *router) bool {
 	chars, childs := rt.chars, rt.childs
 	l := len(chars)
+	if l > 0 && chars[l-1] >= _WILDCARD && b >= _WILDCARD {
+		return false
+	}
 	chars, childs = make([]byte, l+1), make([]*router, l+1)
 	copy(chars, rt.chars)
 	copy(childs, rt.childs)
@@ -512,7 +482,20 @@ func (rt *router) addChild(b byte, n *router) {
 	}
 	chars[l], childs[l] = b, n
 	rt.chars, rt.childs = chars, childs
+	return true
 }
+
+// path character < _WILDCARD < _REMAINSALL
+const (
+	_MATCH_WILDCARD = ':' // MUST BE:other character < _WILDCARD < _REMAINSALL
+	// _WILDCARD is the replacement of named variable in compiled path
+	_WILDCARD         = '|' // MUST BE:other character < _WILDCARD < _REMAINSALL
+	_MATCH_REMAINSALL = '*'
+	// _REMAINSALL is the replacement of catch remains all variable in compiled path
+	_REMAINSALL = '~'
+	// _PRINT_SEP is the seperator of tree level when print route tree
+	_PRINT_SEP = "-"
+)
 
 // matchMultiple match multi route node
 // returned value:(first:next path start index, second:if continue, it's next node to match,
@@ -612,6 +595,82 @@ func (rt *router) matchOne(path string, values []string) (*router, []string) {
 		} /* else { path parse end, node is the last matched node }*/
 	}
 	return rt, values
+}
+
+// pathSections divide path by '/', trim end '/'and the first '/'
+func pathSections(path string) []string {
+	if l := len(path); l > 0 {
+		if l != 1 && path[l-1] == '/' {
+			l = l - 1
+		}
+		path = path[1:l] // trim first and last '/'
+	}
+	return strings.Split(path, "/")
+}
+
+// isInvalidSection check whether section has the predefined _WILDCARD and match
+// all character
+func isInvalidSection(s string) bool {
+	for _, c := range s {
+		if bc := byte(c); bc >= _WILDCARD {
+			return true
+		}
+	}
+	return false
+}
+
+// compile compile a url path to a clean path that replace all named variable
+// to _WILDCARD or _REMAINSALL and extract all variable names
+// if just want to match and don't need variable value, only use ':' or '*'
+// for ':', it will catch the single section of url path seperated by '/'
+// for '*', it will catch all remains url path, it should appear in the last
+// of pattern for variables behind it will all be ignored
+func compile(path string) (newPath string, names map[string]int, err error) {
+	new := make([]byte, 0, len(newPath))
+	sections := pathSections(path)
+	nameIndex := 0
+	for _, s := range sections {
+		new = append(new, '/')
+		last := len(s)
+		i := last - 1
+		var c byte
+		for ; i >= 0; i-- {
+			if s[i] == _MATCH_WILDCARD {
+				c = _WILDCARD
+			} else if s[i] == _MATCH_REMAINSALL {
+				c = _REMAINSALL
+			} else {
+				continue
+			}
+			if name := s[i+1:]; len(name) > 0 {
+				if isInvalidSection(name) {
+					goto ERROR
+				}
+				if names == nil {
+					names = make(map[string]int)
+				}
+				names[name] = nameIndex
+			}
+			nameIndex++
+			last = i
+			break
+		}
+		if last != 0 {
+			new = append(new, []byte(s[:last])...)
+		}
+		if c != 0 {
+			new = append(new, c)
+		}
+	}
+	newPath = string(new)
+	if names == nil {
+		names = nilVars
+	}
+	return
+ERROR:
+	return "", nil,
+		Errorf("path %s has pre-defined characters %c or %c",
+			path, _WILDCARD, _REMAINSALL)
 }
 
 // PrintRouteTree print an route tree

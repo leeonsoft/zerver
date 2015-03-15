@@ -21,6 +21,14 @@ type (
 		Patch(Request, Response)  // update
 	}
 
+	OptionHandler struct {
+		Get    HandlerFunc
+		Post   HandlerFunc
+		Delete HandlerFunc
+		Put    HandlerFunc
+		Patch  HandlerFunc
+	}
+
 	// MethodIndicator is an interface for user handler to
 	// custom method handle functions
 	MethodIndicator interface {
@@ -82,6 +90,16 @@ func newFuncHandler() *funcHandler {
 	return &funcHandler{
 		handlers: make(map[string]HandlerFunc),
 	}
+}
+
+func newFuncHandlerFrom(o *OptionHandler) *funcHandler {
+	fh := newFuncHandler()
+	fh.setMethodHandler(GET, o.Get)
+	fh.setMethodHandler(POST, o.Post)
+	fh.setMethodHandler(DELETE, o.Delete)
+	fh.setMethodHandler(PUT, o.Put)
+	fh.setMethodHandler(PATCH, o.Patch)
+	return fh
 }
 
 // funcHandler implements MethodIndicator interface for custom method handler

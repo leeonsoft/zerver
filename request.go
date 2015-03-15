@@ -14,7 +14,7 @@ type (
 		Param(name string) string
 		Params(name string) []string
 		UserAgent() string
-		URL() *url.URL
+		// URL() *url.URL
 		Method() string
 		ContentType() string
 		AcceptEncodings() string
@@ -106,16 +106,17 @@ func (req *request) Param(name string) (value string) {
 }
 
 // Params return request parameters with name
+// it only get params of url query, don't parse request body
 func (req *request) Params(name string) []string {
 	params, request := req.params, req.request
 	if params == nil {
-		switch req.method {
-		case GET:
-			params = request.URL.Query()
-		default:
-			request.ParseForm()
-			params = request.PostForm
-		}
+		// switch req.method {
+		// case GET:
+		params = request.URL.Query()
+		// default:
+		// request.ParseForm()
+		// params = request.PostForm
+		// }
 		req.params = params
 	}
 	return params[name]
@@ -135,10 +136,10 @@ func (req *request) AcceptEncodings() string {
 	return req.Header(HEADER_ACCEPTENCODING)
 }
 
-// URL return request url
-func (req *request) URL() *url.URL {
-	return req.request.URL
-}
+// // URL return request url
+// func (req *request) URL() *url.URL {
+// 	return req.request.URL
+// }
 
 // Header return header value with name
 func (req *request) Header(name string) string {

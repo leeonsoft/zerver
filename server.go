@@ -43,7 +43,7 @@ func NewServer() *Server {
 // NewServerWith create a new server with given router and root filters
 func NewServerWith(rt Router, filters RootFilters) *Server {
 	if filters == nil {
-		filters = NewRootFilters()
+		filters = NewRootFilters(nil)
 	}
 	if rt == nil {
 		rt = NewRouter()
@@ -174,31 +174,6 @@ func (s *Server) serveTask(path string, value interface{}) {
 	task := newTask(s, indexer, value)
 	handler.Handle(task)
 	task.destroy()
-}
-
-// Get register a function handler process GET request for given pattern
-func (s *Server) Get(pattern string, handlerFunc HandlerFunc) {
-	s.AddFuncHandler(pattern, GET, handlerFunc)
-}
-
-// Post register a function handler process POST request for given pattern
-func (s *Server) Post(pattern string, handlerFunc HandlerFunc) {
-	s.AddFuncHandler(pattern, POST, handlerFunc)
-}
-
-// Put register a function handler process PUT request for given pattern
-func (s *Server) Put(pattern string, handlerFunc HandlerFunc) {
-	s.AddFuncHandler(pattern, PUT, handlerFunc)
-}
-
-// Delete register a function handler process DELETE request for given pattern
-func (s *Server) Delete(pattern string, handlerFunc HandlerFunc) {
-	s.AddFuncHandler(pattern, DELETE, handlerFunc)
-}
-
-// Patch register a function handler process PATCH request for given pattern
-func (s *Server) Patch(pattern string, handlerFunc HandlerFunc) {
-	s.AddFuncHandler(pattern, PATCH, handlerFunc)
 }
 
 // PanicServer create a new goroutine, it force panic whole process
