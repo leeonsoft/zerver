@@ -2,6 +2,9 @@ package zerver
 
 import (
 	"io"
+	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	websocket "github.com/cosiner/zerver_websocket"
@@ -18,6 +21,9 @@ type (
 		SetReadDeadline(t time.Time) error
 		SetWriteDeadline(t time.Time) error
 		RemoteAddr() string
+		RemoteIP() string
+		UserAgent() string
+		URL() *url.URL
 		serverGetter
 	}
 
@@ -26,6 +32,7 @@ type (
 		serverGetter
 		*websocket.Conn
 		URLVarIndexer
+		request *http.Request
 	}
 
 	// WebSocketHandlerFunc is the websocket connection handler
@@ -46,11 +53,25 @@ func newWebSocketConn(s serverGetter, conn *websocket.Conn, varIndexer URLVarInd
 		serverGetter:  s,
 		Conn:          conn,
 		URLVarIndexer: varIndexer,
+		request:       conn.Request(),
 	}
 }
 
+func (wsc *webSocketConn) URL() *url.URL {
+	return wsc.request.URL
+}
+
 func (wsc *webSocketConn) RemoteAddr() string {
-	return wsc.Request().RemoteAddr
+	return wsc.request.RemoteAddr
+}
+
+func (wsc *webSocketConn) RemoteIP() string {
+	return strings.Split(wsc.RemoteAddr(), ":")[1]
+}
+
+// UserAgent return user's agent identify
+func (wsc *webSocketConn) UserAgent() string {
+	return wsc.request.Header.Get(HEADER_USERAGENT)
 }
 
 // WebSocketHandlerFunc is a function WebSocketHandler

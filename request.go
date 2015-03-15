@@ -14,7 +14,7 @@ type (
 		Param(name string) string
 		Params(name string) []string
 		UserAgent() string
-		// URL() *url.URL
+		URL() *url.URL
 		Method() string
 		ContentType() string
 		AcceptEncodings() string
@@ -136,10 +136,10 @@ func (req *request) AcceptEncodings() string {
 	return req.Header(HEADER_ACCEPTENCODING)
 }
 
-// // URL return request url
-// func (req *request) URL() *url.URL {
-// 	return req.request.URL
-// }
+// URL return request url
+func (req *request) URL() *url.URL {
+	return req.request.URL
+}
 
 // Header return header value with name
 func (req *request) Header(name string) string {

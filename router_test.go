@@ -3,6 +3,7 @@ package zerver
 import (
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/cosiner/golib/test"
@@ -12,9 +13,11 @@ import (
 
 func TestCompile(t *testing.T) {
 	tt := test.WrapTest(t)
-	tt.Log(compile("/:user/:id/:a", false))
-	tt.Log(compile("/user/:a/:abc/", false))
-	tt.Log(compile("/user/:/:abc/", false))
+	tt.Log(len(strings.Split("", "/")))
+	tt.Log(compile("/"))
+	tt.Log(compile("/:user/:id/:a"))
+	tt.Log(compile("/user/:a/:abc/"))
+	tt.Log(compile("/user/:/:abc/"))
 }
 
 // routes is copy from github.com/julienschmidt/go-http-routing-benchmark

@@ -1,15 +1,11 @@
-package router
-
-import (
-	. "github.com/cosiner/zerver"
-)
+package zerver
 
 type groupRouter struct {
 	prefix string
 	Router
 }
 
-func NewGroupRouter(prefix string, rt Router) Router {
+func newGroupRouter(rt Router, prefix string) Router {
 	return &groupRouter{
 		prefix: prefix,
 		Router: rt,

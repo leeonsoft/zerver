@@ -24,6 +24,8 @@ type (
 		// Destroy destroy router, also responsible for destroy all handlers and filters
 		Destroy()
 		PrintRouteTree(w io.Writer)
+		Group(prefix string, fn func(Router))
+
 		// AddFuncHandler add a function handler, method are defined as constant string
 		AddFuncHandler(pattern string, method string, handler HandlerFunc) error
 		// AddHandler add a handler
@@ -229,6 +231,10 @@ func (rt *router) Patch(pattern string, handlerFunc HandlerFunc) error {
 	return rt.AddFuncHandler(pattern, PATCH, handlerFunc)
 }
 
+func (rt *router) Group(prefix string, fn func(Router)) {
+	fn(newGroupRouter(rt, prefix))
+}
+
 // AddFuncHandler add function handler to router for given pattern and method
 func (rt *router) AddFuncHandler(pattern, method string, handler HandlerFunc) (err error) {
 	method = parseRequestMethod(method)
@@ -423,7 +429,7 @@ func (rt *router) MatchHandlerFilters(url *url.URL) (Handler,
 // route node for this path
 func (rt *router) addPath(path string) (*router, bool) {
 	str := rt.str
-	if str == "" {
+	if str == "" && len(rt.chars) == 0 {
 		rt.str = path
 	} else {
 		diff, pathLen, strLen := 0, len(path), len(str)
@@ -597,17 +603,6 @@ func (rt *router) matchOne(path string, values []string) (*router, []string) {
 	return rt, values
 }
 
-// pathSections divide path by '/', trim end '/'and the first '/'
-func pathSections(path string) []string {
-	if l := len(path); l > 0 {
-		if l != 1 && path[l-1] == '/' {
-			l = l - 1
-		}
-		path = path[1:l] // trim first and last '/'
-	}
-	return strings.Split(path, "/")
-}
-
 // isInvalidSection check whether section has the predefined _WILDCARD and match
 // all character
 func isInvalidSection(s string) bool {
@@ -625,10 +620,18 @@ func isInvalidSection(s string) bool {
 // for ':', it will catch the single section of url path seperated by '/'
 // for '*', it will catch all remains url path, it should appear in the last
 // of pattern for variables behind it will all be ignored
-func compile(path string) (newPath string, names map[string]int, err error) {
-	new := make([]byte, 0, len(newPath))
-	sections := pathSections(path)
-	nameIndex := 0
+func compile(path string) (newPath string, vars map[string]int, err error) {
+	path = strings.TrimSpace(path)
+	l := len(path)
+	if l == 0 || path[0] != '/' {
+		return "", nil, Errorf("Invalid url pattern: %s", path)
+	}
+	if l != 1 && path[l-1] == '/' {
+		path = path[:l-1]
+	}
+	sections := strings.Split(path[1:], "/")
+	new := make([]byte, 0, len(path))
+	varIndex := 0
 	for _, s := range sections {
 		new = append(new, '/')
 		last := len(s)
@@ -646,12 +649,12 @@ func compile(path string) (newPath string, names map[string]int, err error) {
 				if isInvalidSection(name) {
 					goto ERROR
 				}
-				if names == nil {
-					names = make(map[string]int)
+				if vars == nil {
+					vars = make(map[string]int)
 				}
-				names[name] = nameIndex
+				vars[name] = varIndex
 			}
-			nameIndex++
+			varIndex++
 			last = i
 			break
 		}
@@ -663,8 +666,8 @@ func compile(path string) (newPath string, names map[string]int, err error) {
 		}
 	}
 	newPath = string(new)
-	if names == nil {
-		names = nilVars
+	if vars == nil {
+		vars = nilVars
 	}
 	return
 ERROR:

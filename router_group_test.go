@@ -1,0 +1,33 @@
+package zerver
+
+import (
+	"net/url"
+	"os"
+	"testing"
+
+	"github.com/cosiner/golib/test"
+)
+
+var grt = func() Router {
+	r := NewRouter()
+	gr := newGroupRouter(r, "/user")
+	gr.Get("/:id", EmptyHandlerFunc)
+	gr.Post("/:id", EmptyHandlerFunc)
+	gr.Delete("/:id", EmptyHandlerFunc)
+	gr.Post("/:id/exist", EmptyHandlerFunc)
+	return r
+}()
+var u = &url.URL{Path: "/user/123/exist"}
+
+func TestGroup(t *testing.T) {
+	tt := test.WrapTest(t)
+	grt.PrintRouteTree(os.Stdout)
+	h, _, _ := grt.MatchHandlerFilters(u)
+	tt.AssertTrue(h != nil)
+}
+
+func BenchmarkRouter(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_, _, _ = grt.MatchHandlerFilters(u)
+	}
+}

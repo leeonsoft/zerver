@@ -5,7 +5,7 @@ import (
 
 	. "github.com/cosiner/golib/errors"
 
-	"github.com/cosiner/golib/types"
+	ref "github.com/cosiner/golib/reflect"
 )
 
 type (
@@ -52,7 +52,7 @@ func (v *urlVarIndexer) URLVarDef(name string, defvalue string) string {
 // if address is nil, skip it
 func (v *urlVarIndexer) ScanURLVar(name string, addr interface{}) error {
 	if index, has := v.vars[name]; has {
-		return types.UnmarshalPrimitive(v.values[index], reflect.ValueOf(addr))
+		return ref.UnmarshalPrimitive(v.values[index], reflect.ValueOf(addr))
 	}
 	return Err("No this variable: " + name)
 }
