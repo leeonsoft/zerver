@@ -30,14 +30,17 @@ func CompressFilter(req zerver.Request, resp zerver.Response, chain zerver.Filte
 	encoding := req.AcceptEncodings()
 	if strings.Contains(encoding, zerver.ENCODING_GZIP) {
 		gzw := gzip.NewWriter(resp)
+		gresp := gzipResponse{gzw, resp}
 		resp.SetContentEncoding(zerver.ENCODING_GZIP)
-		chain(req, &gzipResponse{gzw, resp})
+		defer gzw.Close()
+		chain(req, &gresp)
 		gzw.Close()
 	} else if strings.Contains(encoding, zerver.ENCODING_DEFLATE) {
 		flw, _ := flate.NewWriter(resp, flate.DefaultCompression)
+		fresp := flateResponse{flw, resp}
 		resp.SetContentEncoding(zerver.ENCODING_DEFLATE)
-		chain(req, &flateResponse{flw, resp})
-		flw.Close()
+		defer flw.Close()
+		chain(req, &fresp)
 	} else {
 		chain(req, resp)
 	}

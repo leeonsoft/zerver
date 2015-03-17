@@ -19,7 +19,7 @@ type (
 
 	lockedValues struct {
 		Values
-		*sync.RWMutex
+		sync.RWMutex
 	}
 )
 
@@ -29,15 +29,13 @@ func NewValues() Values {
 
 func NewLockedAttrContainer() AttrContainer {
 	return &lockedValues{
-		Values:  NewValues(),
-		RWMutex: new(sync.RWMutex),
+		Values: NewValues(),
 	}
 }
 
 func NewLockedAttrContainerWith(v Values) AttrContainer {
 	return &lockedValues{
-		Values:  v,
-		RWMutex: new(sync.RWMutex),
+		Values: v,
 	}
 }
 

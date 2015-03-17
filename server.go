@@ -113,7 +113,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, request *http.Request) {
 	}
 }
 
-// StartTask add a synchronous task
+// StartTask add a task
+// Task must have corresponding handler, otherwise server will panic
 func (s *Server) StartTask(async bool, path string, value interface{}) {
 	if async {
 		go s.serveTask(path, value)
@@ -149,7 +150,7 @@ func (s *Server) serveHTTP(w http.ResponseWriter, request *http.Request) {
 	var chain FilterChain
 	if handler == nil {
 		resp.ReportNotFound()
-	} else if chain = FilterChain(IndicateHandler(req.Method(), handler)); chain == nil {
+	} else if chain = FilterChain(indicateHandler(req.Method(), handler)); chain == nil {
 		resp.ReportMethodNotAllowed()
 	}
 	chain = newFilterChain(filters, chain)

@@ -52,8 +52,8 @@ type (
 	}
 )
 
-// IndicateHandler indicate handler function from a handler and method
-func IndicateHandler(method string, handler Handler) HandlerFunc {
+// indicateHandler indicate handler function from a handler and method
+func indicateHandler(method string, handler Handler) HandlerFunc {
 	switch handler := handler.(type) {
 	case MethodIndicator:
 		return handler.Handler(method)
