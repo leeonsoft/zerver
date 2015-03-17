@@ -1,7 +1,7 @@
 # Zerver
-__Zerver__ is a high-performance, simple but powerful, restful api framework for [golang](http://golang.org).
+__Zerver__ is a simple but powerful, restful api framework for [golang](http://golang.org).
 
-It's mainly designed for restful api service, but you can also use it as a web framework. Documentation can be found at [godoc.org](godoc.org/github.com/cosiner/zerver)
+It's mainly designed for restful api service, without session, template, cookie support, etc.. But you can still use it as a web framework by easily hack it. Documentation can be found at [godoc.org](godoc.org/github.com/cosiner/zerver)
 
 ### API Reference
 Each file contains a component, all api about this component is defined there.
