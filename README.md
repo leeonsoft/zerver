@@ -26,7 +26,7 @@ func main() {
 
 # Features
 * RESTFul Route
-* Tree-based mux/router
+* Tree-based mux/router, support route group
 * Filter Chain supported
 * Interceptor supported
 * Builtin WebSocket supported
@@ -65,9 +65,7 @@ handler, websockethandler is perform full-matched, filter is perform prefix-matc
 
 ### URLVarIndexer
 If a incoming request is matched by router, variable values exist in matched route will be extracted and packaged as URLVarIndexer.
-* `URLVar(string)` return value of url variable
-* `ScanURLVars(...*string)` scan values to given addresses, if want to skip a variable, place a 'nil' to it's position
-* `URLVars() []string` return all variable values
+
 
 ### Request/Response
 Zerver's `Request` wrapped standard `http.Request`, and `Response` wrapped standard `http.ResponseWriter`. The Request is also a `URLVarIndexer`.
@@ -99,6 +97,8 @@ Zerver provide a object pool `ServerPool`, which is based on `sync.Pool`.
 * `RecycleTo` recycle object to registed pool
 
 After gc, all things stored in pool will be cleared
+
+I'm not sure whether it's necessary, welcome for feedback.
 
 ### Temporary data store
 Zerver provide a temporary data store for data initial before server start, it will be destroyed after server start

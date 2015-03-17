@@ -45,10 +45,10 @@ func NewMonitorServer(p string) (*zerver.Server, error) {
 		p = "/"
 	}
 	s := zerver.NewServer()
-	s.AddFuncHandler("/stop", "GET", func(req zerver.Request, resp zerver.Response) {
-		req.Server().Destroy()
-	})
-	infos["/stop"] = "stop pprof server"
+	// s.AddFuncHandler("/stop", "GET", func(req zerver.Request, resp zerver.Response) {
+	// 	req.Server().Destroy()
+	// })
+	// infos["/stop"] = "stop pprof server"
 	return s, EnableMonitoring("/", s, s.RootFilters)
 }
 
@@ -70,7 +70,7 @@ func globalFilter(req zerver.Request, resp zerver.Response, chain zerver.FilterC
 	resp.SetContentType("text/plain")
 	if resp.Status() == http.StatusNotFound {
 		resp.SetHeader("Location", path+"/options?from="+url.QueryEscape(req.URL().Path))
-		resp.ReportStatus(http.StatusMovedPermanently)
+		resp.ReportMovedPermanently()
 	} else if resp.Status() == http.StatusMethodNotAllowed {
 		sys.WriteStrln(resp, "The pprof interface only support GET request")
 	} else {

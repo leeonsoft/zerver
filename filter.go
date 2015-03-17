@@ -10,7 +10,6 @@ type (
 	// to modify or check request and response
 	// it will be inited on server started, destroyed on server stopped
 	Filter interface {
-		// Init init root filters, it will be automic inited if it's add to server, else
 		ServerInitializer
 		Destroy()
 		Filter(Request, Response, FilterChain)
@@ -37,7 +36,7 @@ type (
 		handler HandlerFunc
 	}
 
-	// Only mmatch for url.Path = "/", others are not concerned
+	// Only match for url.Path = "/", others are not concerned
 	RootFilters interface {
 		ServerInitializer
 		// Filters return all root filters
@@ -103,9 +102,6 @@ func (rfs *rootFilters) Destroy() {
 }
 
 // newFilterChain create a chain of filter
-// this method is setup to public for which condition there only one route
-// need filter, if add to global router, it will make router match slower
-// this method can help for these condition
 //
 // NOTICE: FilterChain keeps some states, it should be use only once
 // if need unlimit FilterChain, use InterceptHandler replace
