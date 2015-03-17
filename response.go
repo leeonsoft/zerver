@@ -19,9 +19,9 @@ type (
 		SetContentEncoding(enc string)
 		SetContentType(typ string)
 		SetAdvancedCookie(c *http.Cookie)
-		SetCookie(name, value string, lifetime int)
-		SetSecureCookie(name, value string, lifetime int)
-		DeleteClientCookie(name string)
+		// SetCookie(name, value string, lifetime int)
+		// SetSecureCookie(name, value string, lifetime int)
+		// DeleteClientCookie(name string)
 		Status() int
 		ReportStatus(statusCode int)
 		Hijack() (net.Conn, *bufio.ReadWriter, error)
@@ -135,24 +135,24 @@ func (resp *response) SetAdvancedCookie(c *http.Cookie) {
 	resp.AddHeader(HEADER_SETCOOKIE, c.String())
 }
 
-// SetCookie setup response cookie
-func (resp *response) SetCookie(name, value string, lifetime int) {
-	resp.SetAdvancedCookie(&http.Cookie{
-		Name:   name,
-		Value:  value,
-		MaxAge: lifetime,
-	})
-}
+// // SetCookie setup response cookie
+// func (resp *response) SetCookie(name, value string, lifetime int) {
+// 	resp.SetAdvancedCookie(&http.Cookie{
+// 		Name:   name,
+// 		Value:  value,
+// 		MaxAge: lifetime,
+// 	})
+// }
 
-// SetSecureCookie setup response cookie with secureity
-func (resp *response) SetSecureCookie(name, value string, lifetime int) {
-	resp.SetCookie(name, value, lifetime)
-}
+// // SetSecureCookie setup response cookie with secureity
+// func (resp *response) SetSecureCookie(name, value string, lifetime int) {
+// 	resp.SetCookie(name, value, lifetime)
+// }
 
-// DeleteClientCookie delete user briwser's cookie by name
-func (resp *response) DeleteClientCookie(name string) {
-	resp.SetCookie(name, "", -1)
-}
+// // DeleteClientCookie delete user briwser's cookie by name
+// func (resp *response) DeleteClientCookie(name string) {
+// 	resp.SetCookie(name, "", -1)
+// }
 
 func (resp *response) Value() interface{} {
 	return resp.value

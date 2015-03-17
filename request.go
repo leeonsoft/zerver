@@ -19,8 +19,9 @@ type (
 		ContentType() string
 		AcceptEncodings() string
 		Header(name string) string
-		Cookie(name string) string
-		SecureCookie(name string) string
+		AttrContainer
+		// Cookie(name string) string
+		// SecureCookie(name string) string
 		serverGetter
 		io.Reader
 		URLVarIndexer
@@ -35,6 +36,7 @@ type (
 		method  string
 		header  http.Header
 		params  url.Values
+		AttrContainer
 	}
 )
 
@@ -55,6 +57,7 @@ func (req *request) init(s serverGetter, requ *http.Request, varIndexer URLVarIn
 }
 
 func (req *request) destroy() {
+	req.AttrContainer.Clear()
 	req.request = nil
 	req.serverGetter = nil
 	req.header = nil
@@ -72,20 +75,20 @@ func (req *request) Method() string {
 	return req.method
 }
 
-// Cookie return cookie value with given name
-func (req *request) Cookie(name string) string {
-	if c, err := req.request.Cookie(name); err == nil {
-		return c.Value
-	}
-	return ""
-}
+// // Cookie return cookie value with given name
+// func (req *request) Cookie(name string) string {
+// 	if c, err := req.request.Cookie(name); err == nil {
+// 		return c.Value
+// 	}
+// 	return ""
+// }
 
-// SecureCookie return secure cookie, currently it's just call Cookie without
-// 'Secure', if need this feture, just put an filter before handler
-// and override this method
-func (req *request) SecureCookie(name string) (value string) {
-	return req.Cookie(name)
-}
+// // SecureCookie return secure cookie, currently it's just call Cookie without
+// // 'Secure', if need this feture, just put an filter before handler
+// // and override this method
+// func (req *request) SecureCookie(name string) (value string) {
+// 	return req.Cookie(name)
+// }
 
 // RemoteAddr return remote address
 func (req *request) RemoteAddr() string {

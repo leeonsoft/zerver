@@ -12,6 +12,7 @@ type (
 		IsAttrExist(name string) bool
 		Attrs() Values
 		AccessAllAttrs(fn func(Values))
+		Clear()
 	}
 
 	Values map[string]interface{}
@@ -80,6 +81,12 @@ func (v Values) AccessAllAttrs(fn func(Values)) {
 	fn(v)
 }
 
+func (v Values) Clear() {
+	for k := range v {
+		delete(v, k)
+	}
+}
+
 func (lc *lockedValues) Attr(key string) (val interface{}) {
 	lc.RLock()
 	val = lc.Values.Attr(key)
@@ -121,4 +128,10 @@ func (lc *lockedValues) AccessAllAttrs(fn func(Values)) {
 	lc.RLock()
 	lc.Values.AccessAllAttrs(fn)
 	lc.RUnlock()
+}
+
+func (lc *lockedValues) Clear() {
+	lc.Lock()
+	lc.Values.Clear()
+	lc.Unlock()
 }

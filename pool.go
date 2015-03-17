@@ -24,7 +24,9 @@ var Pool *ServerPool
 func init() {
 	Pool = &ServerPool{otherPools: make(map[string]*sync.Pool)}
 	Pool.requestEnvPool.New = func() interface{} {
-		return &requestEnv{}
+		env := &requestEnv{}
+		env.req.AttrContainer = NewAttrContainer()
+		return env
 	}
 	Pool.varIndexerPool.New = func() interface{} {
 		return &urlVarIndexer{values: make([]string, 0, PathVarCount)}

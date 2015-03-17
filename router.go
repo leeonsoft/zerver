@@ -232,7 +232,7 @@ func (rt *router) Patch(pattern string, handlerFunc HandlerFunc) error {
 }
 
 func (rt *router) Group(prefix string, fn func(Router)) {
-	fn(newGroupRouter(rt, prefix))
+	fn(NewGroupRouter(rt, prefix))
 }
 
 // AddFuncHandler add function handler to router for given pattern and method
@@ -624,7 +624,7 @@ func compile(path string) (newPath string, vars map[string]int, err error) {
 	path = strings.TrimSpace(path)
 	l := len(path)
 	if l == 0 || path[0] != '/' {
-		return "", nil, Errorf("Invalid url pattern: %s", path)
+		return "", nil, Errorf("Invalid url pattern: %s, must start with '/'", path)
 	}
 	if l != 1 && path[l-1] == '/' {
 		path = path[:l-1]

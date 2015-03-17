@@ -3,6 +3,9 @@ __Zerver__ is a high-performance, simple but powerful, restful api framework for
 
 It's mainly designed for restful api service, but you can also use it as a web framework. Documentation can be found at [godoc.org](godoc.org/github.com/cosiner/zerver)
 
+### API Reference
+Zerver is well designed, each file contains a component, all api about this component is defined there.
+
 ### Install
 `go get github.com/cosiner/zever`
 
@@ -28,7 +31,6 @@ func main() {
 * Interceptor supported
 * Builtin WebSocket supported
 * Builtin Task supported
-* Object Pool
 
 ### Note
 The core of Zerver only define some specifications, it's only a router, and only support output bytes, multiple output format like json/xml/gob should use third party libraries. And also, the `Request` interface only provide method to get parameters for GET request.
@@ -82,6 +84,8 @@ Register a TaskHandler by `server.AddTaskHandler/AddFuncTaskHandler`, start a ta
 
 ### Filter
 Filter will be called before any Handler, and it's only filter Handler, not WebSocketHandler, it accept Request, Response, FilterChain. all matched filters will be packed as a FilterChain, to continue process http request, you must call FilterChain.Filter(Request, Response), otherwise, process is stoped.
+
+URL variable values will not be catched for Filter, unless it use the same route prefix with Handler, otherwise, it should not access URLVarIndexer.
 
 Execute sequence of filters is early route first, in one route, it's early added first.
 

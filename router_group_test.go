@@ -10,13 +10,14 @@ import (
 
 var grt = func() Router {
 	r := NewRouter()
-	gr := newGroupRouter(r, "/user")
+	gr := NewGroupRouter(r, "/user")
 	gr.Get("/:id", EmptyHandlerFunc)
 	gr.Post("/:id", EmptyHandlerFunc)
 	gr.Delete("/:id", EmptyHandlerFunc)
 	gr.Post("/:id/exist", EmptyHandlerFunc)
 	return r
 }()
+
 var u = &url.URL{Path: "/user/123/exist"}
 
 func TestGroup(t *testing.T) {

@@ -5,7 +5,7 @@ type groupRouter struct {
 	Router
 }
 
-func newGroupRouter(rt Router, prefix string) Router {
+func NewGroupRouter(rt Router, prefix string) Router {
 	return &groupRouter{
 		prefix: prefix,
 		Router: rt,

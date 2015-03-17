@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"runtime"
 
 	websocket "github.com/cosiner/zerver_websocket"
 
@@ -80,6 +81,7 @@ func (s *Server) start() {
 	log.Println("Server Start")
 	// destroy temporary data store
 	tmpDestroy()
+	runtime.GC()
 }
 
 // Start start server as http server
