@@ -26,11 +26,7 @@ func (fr *flateResponse) Write(data []byte) (int, error) {
 	return fr.flateWriter.Write(data)
 }
 
-func NewCompressFilter() zerver.Filter {
-	return (zerver.FilterFunc)(compressFilter)
-}
-
-func compressFilter(req zerver.Request, resp zerver.Response, chain zerver.FilterChain) {
+func CompressFilter(req zerver.Request, resp zerver.Response, chain zerver.FilterChain) {
 	encoding := req.AcceptEncodings()
 	if strings.Contains(encoding, zerver.ENCODING_GZIP) {
 		gzw := gzip.NewWriter(resp)

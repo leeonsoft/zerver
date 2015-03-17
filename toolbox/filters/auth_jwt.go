@@ -8,28 +8,19 @@ import (
 )
 
 var (
-	_jwt          *jwt.JWT
-	_authAttrName string
+	JWT               *jwt.JWT
+	AuthTokenAttrName string
 )
 
 const (
-	_AUTH_HEADER = "Authorization"
-	_AUTHFAILED  = http.StatusUnauthorized
+	_HEADER_AUTHRIZATION = "Authorization"
+	_AUTHFAILED          = http.StatusUnauthorized
 )
 
-func NewJWTAuthFilter(j *jwt.JWT, requestAttrName string) zerver.Filter {
-	_jwt = j
-	if requestAttrName == "" {
-		requestAttrName = "Auth"
-	}
-	_authAttrName = requestAttrName
-	return zerver.FilterFunc(jwtAuthFilter)
-}
-
-func jwtAuthFilter(req zerver.Request, resp zerver.Response, chain zerver.FilterChain) {
-	if tokstr := req.Header(_AUTH_HEADER); tokstr != "" {
-		if tok, err := _jwt.Parse(tokstr); err == nil {
-			req.SetAttr(_authAttrName, tok)
+func JWTAuthFilter(req zerver.Request, resp zerver.Response, chain zerver.FilterChain) {
+	if tokstr := req.Header(_HEADER_AUTHRIZATION); tokstr != "" {
+		if tok, err := JWT.Parse(tokstr); err == nil {
+			req.SetAttr(AuthTokenAttrName, tok)
 			chain(req, resp)
 			return
 		}
