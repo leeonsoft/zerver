@@ -139,12 +139,17 @@ func (s *Server) serveWebSocket(w http.ResponseWriter, request *http.Request) {
 	}
 }
 
+type requestEnv struct {
+	req  request
+	resp response
+}
+
 // serveHTTP serve for http protocal
 func (s *Server) serveHTTP(w http.ResponseWriter, request *http.Request) {
 	url := request.URL
 	url.Host = request.Host
 	handler, indexer, filters := s.MatchHandlerFilters(url)
-	requestEnv := Pool.newRequestEnv()
+	requestEnv := requestEnv{}
 	req, resp := requestEnv.req.init(s, request, indexer), requestEnv.resp.init(w)
 
 	var chain FilterChain
@@ -160,8 +165,6 @@ func (s *Server) serveHTTP(w http.ResponseWriter, request *http.Request) {
 	chain(req, resp)
 	req.destroy()
 	resp.destroy()
-	Pool.recycleRequestEnv(requestEnv)
-	Pool.recycleFilters(filters)
 }
 
 // serveTask serve for asynchronous task

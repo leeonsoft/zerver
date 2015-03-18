@@ -112,10 +112,10 @@ func newFilterChain(filters []Filter, handler func(Request, Response)) FilterCha
 	} else if l == 1 {
 		return newInterceptHandler(handler, filters[0])
 	}
-	chain := Pool.newFilterChain()
-	chain.filters = filters
-	chain.handler = handler
-	return chain.handleChain
+	return (&filterChain{
+		filters: filters,
+		handler: handler,
+	}).handleChain
 }
 
 // handleChain call next filter, if there is no next filter,then call final handler
@@ -139,7 +139,6 @@ func (chain *filterChain) handleChain(req Request, resp Response) {
 func (chain *filterChain) destroy() {
 	chain.filters = nil
 	chain.handler = nil
-	Pool.recycleFilterChain(chain)
 }
 
 // InterceptHandler will create a permanent HandlerFunc/FilterChain, there is no

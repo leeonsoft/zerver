@@ -293,8 +293,8 @@ var r = rt()
 
 func BenchmarkMatchRouteOne(b *testing.B) {
 	// tt := test.WrapTest(b)
-	path := "/repos/julienschmidt/httprouter/stargazers"
-	// path := "/user/repos"
+	// path := "/repos/julienschmidt/httprouter/stargazers"
+	path := "/user/repos"
 	// path := "/user/keys"
 	// path := "/user/aa/exist"
 	for i := 0; i < b.N; i++ {
@@ -305,7 +305,13 @@ func BenchmarkMatchRouteOne(b *testing.B) {
 		// for continu {
 		// 	pathIndex, vars, n, continu = n.matchMulti(path, pathIndex, vars)
 		// }
-		_, _ = r.matchOne(path, make([]string, 0, 2))
+		_, _ = r.matchOne(path)
+	}
+}
+
+func BenchmarkMakeSlice(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = make([]string, 0, PathVarCount)
 	}
 }
 
@@ -317,7 +323,7 @@ func BenchmarkMatchRouteMultiple(b *testing.B) {
 	// path := "/user/aa/exist"
 	for i := 0; i < b.N; i++ {
 		pathIndex := 0
-		var vars []string = make([]string, 0, 2)
+		var vars []string
 		var continu = true
 		n := r
 		for continu {
@@ -337,9 +343,9 @@ func TestRoute(t *testing.T) {
 	// OnErrPanic(rt.AddHandler("/vba/:id", newFuncHandler()))
 	// OnErrPanic(rt.AddHandler("/v0a/:id", newFuncHandler()))
 	rt.PrintRouteTree(os.Stdout)
-	_, value := rt.matchOne("/user.json", nil)
+	_, value := rt.matchOne("/user.json")
 	t.Log(value)
-	_, value = rt.matchOne("/vbc", nil)
+	_, value = rt.matchOne("/vbc")
 	t.Log(value)
 }
 

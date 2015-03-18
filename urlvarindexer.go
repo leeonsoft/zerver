@@ -25,10 +25,13 @@ type (
 	}
 )
 
+var (
+	nilIndexer = &urlVarIndexer{vars: nilVars}
+)
+
 func (v *urlVarIndexer) destroySelf() {
 	v.values = v.values[:0]
 	v.vars = nil
-	Pool.recycleVarIndexer(v)
 }
 
 // URLVar return values of variable

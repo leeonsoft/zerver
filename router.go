@@ -342,13 +342,14 @@ func (rt *router) addPattern(pattern string, fn func(*routeProcessor, map[string
 // MatchWebSockethandler match url to find final websocket handler
 func (rt *router) MatchWebSocketHandler(url *url.URL) (WebSocketHandler, URLVarIndexer) {
 	path := url.Path
-	indexer := Pool.newVarIndexer()
-	rt, values := rt.matchOne(path, indexer.values)
-	indexer.values = values
+	rt, values := rt.matchOne(path)
+	indexer := nilIndexer
 	if rt != nil {
 		if p := rt.processor; p != nil {
 			if wsp := p.wsHandlerProcessor; wsp != nil {
-				indexer.vars = wsp.vars
+				if len(wsp.vars) != 0 {
+					indexer = &urlVarIndexer{vars: wsp.vars, values: values}
+				}
 				return wsp.wsHandler, indexer
 			}
 		}
@@ -359,19 +360,19 @@ func (rt *router) MatchWebSocketHandler(url *url.URL) (WebSocketHandler, URLVarI
 // MatchTaskhandler match url to find final websocket handler
 func (rt *router) MatchTaskHandler(url *url.URL) (TaskHandler, URLVarIndexer) {
 	path := url.Path
-	indexer := Pool.newVarIndexer()
-	rt, values := rt.matchOne(path, indexer.values)
-	indexer.values = values
+	indexer := nilIndexer
+	rt, values := rt.matchOne(path)
 	if rt != nil {
 		if p := rt.processor; p != nil {
 			if thp := p.taskHandlerProcessor; thp != nil {
-				indexer.vars = thp.vars
+				if len(thp.vars) != 0 {
+					indexer = &urlVarIndexer{vars: thp.vars, values: values}
+				}
 				return thp.taskHandler, indexer
 			}
 		}
 	}
-	return nil, indexer
-
+	return nil, nilIndexer
 }
 
 // // MatchHandler match url to find final websocket handler
@@ -395,29 +396,32 @@ func (rt *router) MatchHandlerFilters(url *url.URL) (Handler,
 	var (
 		path    = url.Path
 		p       *routeProcessor
-		indexer = Pool.newVarIndexer()
-		values  = indexer.values
+		values  []string
 		filters []Filter
 	)
 	if rt.noFilter {
-		rt, values = rt.matchOne(path, indexer.values)
+		rt, values = rt.matchOne(path)
 	} else {
-		filters = Pool.newFilters()
 		pathIndex, continu := 0, true
 		for continu {
 			if p = rt.processor; p != nil {
 				if pfs := p.filters; len(pfs) != 0 {
+					if len(filters) == 0 {
+						filters = make([]Filter, 0, FilterCount)
+					}
 					filters = append(filters, pfs...)
 				}
 			}
 			pathIndex, values, rt, continu = rt.matchMultiple(path, pathIndex, values)
 		}
 	}
-	indexer.values = values
+	indexer := nilIndexer
 	if rt != nil {
 		if p = rt.processor; p != nil {
 			if hp := p.handlerProcessor; hp != nil {
-				indexer.vars = hp.vars
+				if len(hp.vars) != 0 {
+					indexer = &urlVarIndexer{vars: hp.vars, values: values}
+				}
 				return hp.handler, indexer, filters
 			}
 		}
@@ -523,11 +527,17 @@ func (rt *router) matchMultiple(path string, pathIndex int, values []string) (in
 				for pathIndex < pathLen && path[pathIndex] != '/' {
 					pathIndex++
 				}
+				if values == nil {
+					values = make([]string, 0, PathVarCount)
+				}
 				values = append(values, path[start:pathIndex])
 			case _REMAINSALL: // parse end, full matched
-				values = append(values, path[pathIndex:pathLen])
-				pathIndex = pathLen
-				strIndex = strLen
+				if values == nil {
+					values = []string{path[pathIndex:pathLen]}
+				} else {
+					values = append(values, path[pathIndex:pathLen])
+				}
+				return pathLen, values, rt, false
 			default:
 				return -1, nil, nil, false // not matched
 			}
@@ -554,12 +564,13 @@ func (rt *router) matchMultiple(path string, pathIndex int, values []string) (in
 }
 
 // matchOne match one longest route node and return values of path variable
-func (rt *router) matchOne(path string, values []string) (*router, []string) {
+func (rt *router) matchOne(path string) (*router, []string) {
 	var (
 		str                string
 		strIndex, strLen   int
 		pathIndex, pathLen = 0, len(path)
 		node               = rt
+		values             []string
 	)
 	for node != nil {
 		str, strIndex = rt.str, 0
@@ -577,9 +588,16 @@ func (rt *router) matchOne(path string, values []string) (*router, []string) {
 					for pathIndex < pathLen && path[pathIndex] != '/' {
 						pathIndex++
 					}
+					if values == nil {
+						values = make([]string, 0, PathVarCount)
+					}
 					values = append(values, path[start:pathIndex])
 				case _REMAINSALL: // parse end, full matched
-					values = append(values, path[pathIndex:pathLen])
+					if values == nil {
+						values = []string{path[pathIndex:pathLen]}
+					} else {
+						values = append(values, path[pathIndex:pathLen])
+					}
 					return rt, values
 				default:
 					return nil, nil // not matched
