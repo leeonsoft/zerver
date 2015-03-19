@@ -19,8 +19,8 @@ package main
 import "github.com/cosiner/zerver"
 
 func main() {
-    server := zever.NewServer()
-    server.Get("/", func(req zever.Request, resp zever.Response) {
+    server := zerver.NewServer()
+    server.Get("/", func(req zerver.Request, resp zerver.Response) {
         resp.Write([]byte("Hello World!"))    
     })
     server.Start(":8080")
