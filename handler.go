@@ -1,7 +1,5 @@
 package zerver
 
-import "net/http"
-
 type (
 	// HandlerFunc is the common request handler function type
 	HandlerFunc func(Request, Response)
@@ -116,18 +114,18 @@ func (EmptyHandler) Init(*Server) error { return nil }
 
 // EmptyHandler methods
 func (EmptyHandler) Get(_ Request, resp Response) {
-	resp.ReportStatus(http.StatusMethodNotAllowed)
+	resp.ReportMethodNotAllowed()
 }
 func (EmptyHandler) Post(_ Request, resp Response) {
-	resp.ReportStatus(http.StatusMethodNotAllowed)
+	resp.ReportMethodNotAllowed()
 }
 func (EmptyHandler) Delete(_ Request, resp Response) {
-	resp.ReportStatus(http.StatusMethodNotAllowed)
+	resp.ReportMethodNotAllowed()
 }
 func (EmptyHandler) Put(_ Request, resp Response) {
-	resp.ReportStatus(http.StatusMethodNotAllowed)
+	resp.ReportMethodNotAllowed()
 }
 func (EmptyHandler) Patch(_ Request, resp Response) {
-	resp.ReportStatus(http.StatusMethodNotAllowed)
+	resp.ReportMethodNotAllowed()
 }
 func (EmptyHandler) Destroy() {}
