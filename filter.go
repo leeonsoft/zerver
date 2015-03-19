@@ -103,10 +103,13 @@ func (rfs *rootFilters) Destroy() {
 
 // newFilterChain create a chain of filter
 //
-// NOTICE: FilterChain keeps some states, it should be use only once
+// NOTICE: FilterChain keeps some states, it should be used only once
 // if need unlimit FilterChain, use InterceptHandler replace
 // but it takes less memory space, InterceptHandler takes more, make your choice
 func newFilterChain(filters []Filter, handler func(Request, Response)) FilterChain {
+	if handler == nil {
+		handler = EmptyHandlerFunc
+	}
 	if l := len(filters); l == 0 {
 		return handler
 	} else if l == 1 {
@@ -146,6 +149,9 @@ func (chain *filterChain) destroy() {
 //
 // InterceptHandler wrap a handler with some filters as a interceptor
 func InterceptHandler(handler func(Request, Response), filters ...Filter) func(Request, Response) {
+	if handler == nil {
+		handler = EmptyHandlerFunc
+	}
 	if len(filters) == 0 {
 		return handler
 	}
@@ -153,9 +159,6 @@ func InterceptHandler(handler func(Request, Response), filters ...Filter) func(R
 }
 
 func newInterceptHandler(handler func(Request, Response), filter Filter) func(Request, Response) {
-	if handler == nil {
-		handler = EmptyHandlerFunc
-	}
 	return (&handlerInterceptor{
 		filter:  filter,
 		handler: handler,

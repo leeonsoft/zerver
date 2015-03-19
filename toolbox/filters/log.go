@@ -4,9 +4,13 @@ import (
 	"github.com/cosiner/zerver"
 )
 
-var Logger func(v ...interface{})
+type LogFilter func(v ...interface{})
 
-func AccessLogFilter(req zerver.Request, resp zerver.Response, chain zerver.FilterChain) {
-	Logger(req.RemoteAddr(), req.URL().String(), req.UserAgent())
+func (l LogFilter) Init(*zerver.Server) error { return nil }
+
+func (l LogFilter) Filter(req zerver.Request, resp zerver.Response, chain zerver.FilterChain) {
+	l(req.RemoteAddr(), req.URL().String(), req.UserAgent())
 	chain(req, resp)
 }
+
+func (l LogFilter) Destroy() {}
