@@ -150,6 +150,7 @@ func (s *Server) serveHTTP(w http.ResponseWriter, request *http.Request) {
 	url.Host = request.Host
 	handler, indexer, filters := s.MatchHandlerFilters(url)
 	requestEnv := requestEnv{}
+	requestEnv.req.AttrContainer = NewAttrContainer()
 	req, resp := requestEnv.req.init(s, request, indexer), requestEnv.resp.init(w)
 
 	var chain FilterChain
