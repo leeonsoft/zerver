@@ -10,13 +10,13 @@ I'm trying to build a pure restful framework with great extensibility, for golan
 Each file contains a component, all api about this component is defined there.
 
 ### Install
-`go get github.com/cosiner/zever`
+`go get github.com/cosiner/zerver`
 
 ### Getting Started
 ```Go
 package main
 
-import "github.com/cosiner/zever"
+import "github.com/cosiner/zerver"
 
 func main() {
     server := zever.NewServer()
