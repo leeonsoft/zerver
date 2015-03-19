@@ -96,7 +96,7 @@ func (req *request) RemoteAddr() string {
 }
 
 func (req *request) RemoteIP() string {
-	return strings.Split(req.RemoteAddr(), ":")[1]
+	return strings.Split(req.RemoteAddr(), ":")[0]
 }
 
 // Param return request parameter with name

@@ -127,9 +127,7 @@ func newFilterChain(filters []Filter, handler func(Request, Response)) FilterCha
 func (chain *filterChain) handleChain(req Request, resp Response) {
 	filters := chain.filters
 	if len(filters) == 0 {
-		if h := chain.handler; h != nil {
-			chain.handler(req, resp)
-		}
+		chain.handler(req, resp)
 		chain.destroy()
 	} else {
 		filter := filters[0]

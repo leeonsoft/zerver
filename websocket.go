@@ -66,7 +66,7 @@ func (wsc *webSocketConn) RemoteAddr() string {
 }
 
 func (wsc *webSocketConn) RemoteIP() string {
-	return strings.Split(wsc.RemoteAddr(), ":")[1]
+	return strings.Split(wsc.RemoteAddr(), ":")[0]
 }
 
 // UserAgent return user's agent identify
