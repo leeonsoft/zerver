@@ -16,7 +16,7 @@ type (
 	Server struct {
 		Router
 		AttrContainer
-		RootFilters RootFilters
+		RootFilters RootFilters // Match Every Routes
 		checker     websocket.HeaderChecker
 	}
 
@@ -158,11 +158,7 @@ func (s *Server) serveHTTP(w http.ResponseWriter, request *http.Request) {
 	} else if chain = FilterChain(indicateHandler(req.Method(), handler)); chain == nil {
 		resp.ReportMethodNotAllowed()
 	}
-	chain = newFilterChain(filters, chain)
-	if url.Path == "/" {
-		chain = newFilterChain(s.RootFilters.Filters(url), chain)
-	}
-	chain(req, resp)
+	newFilterChain(s.RootFilters.Filters(url), newFilterChain(filters, chain))(req, resp)
 	req.destroy()
 	resp.destroy()
 }
