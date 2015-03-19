@@ -36,7 +36,7 @@ type (
 		handler HandlerFunc
 	}
 
-	// Only match for url.Path = "/", others are not concerned
+	// MatchAll routes
 	RootFilters interface {
 		ServerInitializer
 		// Filters return all root filters
