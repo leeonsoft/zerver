@@ -78,9 +78,13 @@ func AuthHandler(req zerver.Request, resp zerver.Response) {
 }
 
 server.AddFuncHandler("/auth", zerver.InterceptHandler(
-    AuthHandler, BasicAuthFilter, AuthLogFilter,
+    AuthHandler, 
+    zerver.FilterFunc(BasicAuthFilter), 
+    zerver.FilterFunc(AuthLogFilter),
 ))
 ```
+
+More detail please see [wiki page](https://github.com/cosiner/zerver/wiki).
 
 ### License
 MIT.
