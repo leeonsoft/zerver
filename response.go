@@ -13,24 +13,32 @@ import (
 
 type (
 	Response interface {
+		// These methods should be called before Write
 		SetHeader(name, value string)
 		AddHeader(name, value string)
 		RemoveHeader(name string)
 		SetContentEncoding(enc string)
 		SetContentType(typ string)
 		SetAdvancedCookie(c *http.Cookie)
+		CacheSeconds(secs int)
+		CacheUntil(*time.Time)
+		NoCache()
+
 		// SetCookie(name, value string, lifetime int)
 		// SetSecureCookie(name, value string, lifetime int)
 		// DeleteClientCookie(name string)
 		Status() int
+		// ReportStatus report status code, it will not immediately write the status
+		// to response, unless response is destroyed or Write was called
 		ReportStatus(statusCode int)
-		Hijack() (net.Conn, *bufio.ReadWriter, error)
-		Flush()
-		io.Writer
 		StatusResponse
-		CacheSeconds(secs int)
-		CacheUntil(*time.Time)
-		NoCache()
+		http.Hijacker
+		http.Flusher
+
+		// Write will automicly write http status and header, any operations about
+		// status and header should be performed before Write
+		io.Writer
+
 		destroy()
 		// Value/SetValue provide a approach to transmit value between filter/handler
 		// there is only one instance, if necessary first save origin value, after
@@ -49,11 +57,6 @@ type (
 	}
 )
 
-func (resp *response) Write(data []byte) (int, error) {
-	resp.statusWrited = true
-	return resp.ResponseWriter.Write(data)
-}
-
 // newResponse create a new response, and set default content type to HTML
 func (resp *response) init(w http.ResponseWriter) Response {
 	resp.ResponseWriter = w
@@ -63,31 +66,30 @@ func (resp *response) init(w http.ResponseWriter) Response {
 }
 
 func (resp *response) destroy() {
-	if !resp.statusWrited {
-		resp.WriteHeader(resp.status)
-	}
+	resp.flushHeader()
 	resp.ResponseWriter = nil
 	resp.header = nil
 }
 
-// SetHeader setup response header
-func (resp *response) SetHeader(name, value string) {
-	resp.header.Set(name, value)
+func (resp *response) Write(data []byte) (int, error) {
+	resp.flushHeader()
+	return resp.ResponseWriter.Write(data)
 }
 
-// AddHeader add a value to response header
-func (resp *response) AddHeader(name, value string) {
-	resp.header.Add(name, value)
-}
-
-// RemoveHeader remove response header by name
-func (resp *response) RemoveHeader(name string) {
-	resp.header.Del(name)
+func (resp *response) flushHeader() {
+	if !resp.statusWrited {
+		resp.WriteHeader(resp.status)
+		resp.statusWrited = true
+	}
 }
 
 // ReportStatus report an http status with given status code
+// only when response is not destroyed and Write was not called the status will
+// be changed
 func (resp *response) ReportStatus(statusCode int) {
-	resp.status = statusCode
+	if !resp.statusWrited {
+		resp.status = statusCode
+	}
 }
 
 func (resp *response) Status() int {
@@ -107,6 +109,21 @@ func (resp *response) Flush() {
 	if flusher, is := resp.ResponseWriter.(http.Flusher); is {
 		flusher.Flush()
 	}
+}
+
+// SetHeader setup response header
+func (resp *response) SetHeader(name, value string) {
+	resp.header.Set(name, value)
+}
+
+// AddHeader add a value to response header
+func (resp *response) AddHeader(name, value string) {
+	resp.header.Add(name, value)
+}
+
+// RemoveHeader remove response header by name
+func (resp *response) RemoveHeader(name string) {
+	resp.header.Del(name)
 }
 
 // SetContentType set content type of response

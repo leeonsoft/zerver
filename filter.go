@@ -157,6 +157,16 @@ func InterceptHandler(handler func(Request, Response), filters ...Filter) func(R
 	return newInterceptHandler(InterceptHandler(handler, filters[1:]...), filters[0])
 }
 
+func InterceptHandler2(handler func(Request, Response), filters ...FilterFunc) func(Request, Response) {
+	if handler == nil {
+		handler = EmptyHandlerFunc
+	}
+	if len(filters) == 0 {
+		return handler
+	}
+	return newInterceptHandler(InterceptHandler2(handler, filters[1:]...), filters[0])
+}
+
 func newInterceptHandler(handler func(Request, Response), filter Filter) func(Request, Response) {
 	return (&handlerInterceptor{
 		filter:  filter,

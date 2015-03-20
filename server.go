@@ -18,6 +18,7 @@ type (
 		AttrContainer
 		RootFilters RootFilters // Match Every Routes
 		checker     websocket.HeaderChecker
+		ContentType string // default content type
 	}
 
 	// HeaderChecker is a http header checker, it accept a function which can get
@@ -63,6 +64,9 @@ func (s *Server) Server() *Server {
 
 // Start start server
 func (s *Server) start() {
+	if s.ContentType == "" {
+		s.ContentType = CONTENTTYPE_JSON
+	}
 	OnErrPanic(s.RootFilters.Init(s))
 	log.Println("Init Handlers and Filters")
 	s.Router.Init(func(handler Handler) bool {
@@ -146,7 +150,7 @@ func (s *Server) serveHTTP(w http.ResponseWriter, request *http.Request) {
 	handler, indexer, filters := s.MatchHandlerFilters(url)
 	requestEnv := Pool.newRequestEnv()
 	req, resp := requestEnv.req.init(s, request, indexer), requestEnv.resp.init(w)
-
+	resp.SetContentType(s.ContentType)
 	var chain FilterChain
 	if handler == nil {
 		resp.ReportNotFound()
