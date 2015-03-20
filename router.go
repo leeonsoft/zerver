@@ -254,7 +254,7 @@ func (rt *router) AddFuncHandler(pattern, method string, handler HandlerFunc) (e
 func (rt *router) AddHandler(pattern string, handler Handler) error {
 	return rt.addPattern(pattern, func(rp *routeProcessor, pathVars map[string]int) error {
 		if rp.handlerProcessor != nil {
-			return Errorf("handler already exist")
+			return Err("handler already exist")
 		}
 		rp.handlerProcessor = &handlerProcessor{
 			vars:    pathVars,
