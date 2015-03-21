@@ -9,6 +9,8 @@ import (
 
 const (
 	_HEADER_AUTHRIZATION = "Authorization"
+	ErrNilJWT            = Err("jwt token generator/validator can't be nil")
+	ErrNilKeyFunc        = Err("jwt secret key getter can't be nil")
 )
 
 type JWTAuthFilter struct {
@@ -18,10 +20,10 @@ type JWTAuthFilter struct {
 
 func (j *JWTAuthFilter) Init(s *zerver.Server) error {
 	if j.JWT == nil {
-		return Err("jwt token generator/validator can't be nil")
+		return ErrNilJWT
 	}
 	if j.JWT.Keyfunc == nil {
-		return Err("jwt secret key getter can't be nil")
+		return ErrNilKeyFunc
 	}
 	if j.AuthTokenAttrName == "" {
 		j.AuthTokenAttrName = "AuthToken"

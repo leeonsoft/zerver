@@ -57,6 +57,10 @@ type (
 	}
 )
 
+const (
+	ErrHijack = Err("Connection not support hijack")
+)
+
 // newResponse create a new response, and set default content type to HTML
 func (resp *response) init(w http.ResponseWriter) Response {
 	resp.ResponseWriter = w
@@ -67,6 +71,7 @@ func (resp *response) init(w http.ResponseWriter) Response {
 
 func (resp *response) destroy() {
 	resp.flushHeader()
+	resp.statusWrited = false
 	resp.ResponseWriter = nil
 	resp.header = nil
 }
@@ -101,7 +106,7 @@ func (resp *response) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	if hijacker, is := resp.ResponseWriter.(http.Hijacker); is {
 		return hijacker.Hijack()
 	}
-	return nil, nil, Err("Connection not support hijack")
+	return nil, nil, ErrHijack
 }
 
 // Flush flush response's output
