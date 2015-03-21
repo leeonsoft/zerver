@@ -110,6 +110,14 @@ var (
 	FilterCount  = 2
 )
 
+const (
+	ErrConflictPathVar = Err("There is a similar route pattern which use same wildcard" +
+		" or catchall at the same position, " +
+		"this means one of them will nerver be matched, " +
+		"please check your routes")
+	ErrHandlerExist = Err("handler for this route already exist")
+)
+
 // init init handler and filters hold by routeProcessor
 func (rp *routeProcessor) init(initHandler func(Handler) bool,
 	initFilter func(Filter) bool,
@@ -254,7 +262,7 @@ func (rt *router) AddFuncHandler(pattern, method string, handler HandlerFunc) (e
 func (rt *router) AddHandler(pattern string, handler Handler) error {
 	return rt.addPattern(pattern, func(rp *routeProcessor, pathVars map[string]int) error {
 		if rp.handlerProcessor != nil {
-			return Err("handler already exist")
+			return ErrHandlerExist
 		}
 		rp.handlerProcessor = &handlerProcessor{
 			vars:    pathVars,
@@ -277,7 +285,7 @@ func (rt *router) AddFuncWebSocketHandler(pattern string, handler WebSocketHandl
 func (rt *router) AddWebSocketHandler(pattern string, handler WebSocketHandler) error {
 	return rt.addPattern(pattern, func(rp *routeProcessor, pathVars map[string]int) error {
 		if rp.wsHandlerProcessor != nil {
-			return Err("websocket handler already exist")
+			return ErrHandlerExist
 		}
 		rp.wsHandlerProcessor = &wsHandlerProcessor{
 			vars:      pathVars,
@@ -296,7 +304,7 @@ func (rt *router) AddFuncTaskHandler(pattern string, handler TaskHandlerFunc) er
 func (rt *router) AddTaskHandler(pattern string, handler TaskHandler) error {
 	return rt.addPattern(pattern, func(rp *routeProcessor, pathVars map[string]int) error {
 		if rp.taskHandlerProcessor != nil {
-			return Err("task handler already exist")
+			return ErrHandlerExist
 		}
 		rp.taskHandlerProcessor = &taskHandlerProcessor{
 			vars:        pathVars,
@@ -320,11 +328,6 @@ func (rt *router) AddFilter(pattern string, filter Filter) error {
 	})
 }
 
-var conflictPathVar = Err("There is a similar route pattern which use same wildcard" +
-	" or catchall at the same position, " +
-	"this means one of them will nerver be matched, " +
-	"please check your routes")
-
 // addPattern compile pattern, extract all variables, and add it to route tree
 // setup by given function
 func (rt *router) addPattern(pattern string, fn func(*routeProcessor, map[string]int) error) error {
@@ -333,7 +336,7 @@ func (rt *router) addPattern(pattern string, fn func(*routeProcessor, map[string
 		if r, success := rt.addPath(routePath); success {
 			err = fn(r.routeProcessor(), pathVars)
 		} else {
-			err = conflictPathVar
+			err = ErrConflictPathVar
 		}
 	}
 	return err
